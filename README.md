@@ -31,7 +31,7 @@ and halves Android's window animations so apps open and close faster (`--normal-
 | | |
 |---|---|
 | **Dock** | Queue, Netflix, Prime Video, Disney+, ESPN; the rest of your apps sit in the grid below. Up from the dock opens the top menu (inputs, settings). |
-| **Top Shelf** | Highlight Queue, Netflix, Prime Video or Disney+ and the screen behind the dock becomes a full backdrop of a title picked for you on that service, with its IMDb rating, year, length and the reason. It moves through 5 picks every 8 seconds; each app shows different titles. Other apps show their own artwork. |
+| **Top Shelf** | Highlight Queue, Netflix, Prime Video or Disney+ and the screen behind the dock becomes a full, bright backdrop with the title's logo: IMDb's newest hits (this year or last) and biggest hits (most-rated classics) on that service, in turn, a different handful each day. It moves on every 8 seconds; each app shows its own titles. The dock sits on frosted glass. No anime (`SKIP_ANIME` in `tools/build_catalog.py`). |
 | **Rearrange apps** | Hold OK on an app → **Move**, arrows to carry it, Back to put it down. Hold OK → **Add to dock** / **Replace in dock** to change the dock. |
 
 ## Queue

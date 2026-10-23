@@ -39,6 +39,7 @@ SERVICES = {"Netflix": "netflix", "Amazon Prime Video": "prime", "Amazon Prime V
             "Disney Plus": "disney"}
 SERVICE_IDS = "8|9|337"   # TMDB provider ids for Netflix, Prime Video, Disney+
 MIN_VOTES = 3000          # IMDb votes for a title to count as established
+SKIP_ANIME = True         # not wanted on this TV: no anime in Queue or the Top Shelf
 # Wikidata properties holding each service's own id for a title, and how the TV app's links look.
 # Netflix's app opens /title/<id> directly; Prime Video's opens watch.amazon.com/detail?asin=<ASIN>;
 # Disney+'s answers disneyplus.com links.
@@ -127,6 +128,11 @@ def details(kind, tmdb_id):
     return get(f"/{kind}/{tmdb_id}", append_to_response=extra, include_image_language="en,null")
 
 
+def is_anime(d):
+    """Japanese animation. TMDB's keywords miss many (One Piece, Death Note), the original language doesn't."""
+    return d.get("original_language") == "ja" and any(g.get("name") == "Animation" for g in d.get("genres", []))
+
+
 def best_images(d):
     """(logo, backdrop): the best English PNG logo (Android can't draw TMDB's SVG ones), and the best
     textless backdrop, so the logo is the only title on screen; the default backdrop when there is none."""
@@ -179,7 +185,7 @@ def entry(kind, d, ratings, seeds_for):
         "id": k, "type": kind, "title": d.get("title") or d.get("name"), "year": int(date[:4]) if date[:4].isdigit() else 0,
         "length": length, "genres": [g["name"] for g in d.get("genres", [])], "keywords": [x["name"] for x in kw[:10]],
         "maker": maker, "cast": cast, "overview": short(d.get("overview")), "cert": cert_of(kind, d),
-        "imdb": imdb, "rating": rating, "votes": votes, "services": services,
+        "imdb": imdb, "rating": rating, "votes": votes, "services": services, "lang": d.get("original_language"),
         "backdrop": backdrop, "logo": logo, "poster": d.get("poster_path"),
         "because": sorted(seeds_for.get(k, [])),
         "wikidata": (d.get("external_ids") or {}).get("wikidata_id"),
@@ -271,8 +277,12 @@ def main():
     with ThreadPoolExecutor(16) as ex:
         fetched = list(ex.map(lambda kv: (kv[0], details(*kv)), pool.values()))
     cards = []
+    skipped_anime = 0
     for (kind, d) in fetched:
         if not d or d.get("adult"):
+            continue
+        if SKIP_ANIME and is_anime(d):
+            skipped_anime += 1
             continue
         e = entry(kind, d, ratings, seeds_for)
         if not e["backdrop"] or not e["overview"] or not e["year"]:
@@ -305,7 +315,7 @@ def main():
           f"{os.path.getsize(OUT) // 1024} KB -> {OUT}")
     links = {s: sum(1 for c in cards if s in c["links"]) for s in ("netflix", "prime", "disney")}
     print(f"direct app links: {links} (of the titles on each service: {by_service})")
-    print(f"logos: {sum(1 for c in cards if c.get('logo'))} of {len(cards)} titles")
+    print(f"logos: {sum(1 for c in cards if c.get('logo'))} of {len(cards)} titles; anime left out: {skipped_anime}")
 
 
 if __name__ == "__main__":

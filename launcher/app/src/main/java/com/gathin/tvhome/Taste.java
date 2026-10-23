@@ -7,13 +7,16 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 
 /**
@@ -170,6 +173,45 @@ final class Taste {
             context.add(vectors.get(best.id));
         }
         return out;
+    }
+
+    /**
+     * The Top Shelf: IMDb's newest hits (this year or last, rated 6.8+) and biggest hits (7.5+, the most
+     * votes), taken in turn, on one service or all. Which of the top dozen of each show changes daily, so
+     * the shelf isn't the same five every day. Titles you passed on stay off it.
+     */
+    List<Pick> hits(int n, String service, Collection<String> exclude) {
+        int year = Calendar.getInstance().get(Calendar.YEAR);
+        List<Catalog.Title> big = new ArrayList<>(), fresh = new ArrayList<>();
+        for (Catalog.Title t : catalog.titles) {
+            if (exclude.contains(t.id) || "pass".equals(reactions.get(t.id))) continue;
+            if (service != null && !contains(t.services, service)) continue;
+            if (t.services.length == 0) continue;   // still only in cinemas: nothing to open
+            if (t.year >= year - 1) {
+                if (t.rating >= 6.8) fresh.add(t);
+            } else if (t.rating >= 7.5) {
+                big.add(t);
+            }
+        }
+        big.sort((a, b) -> Integer.compare(b.votes, a.votes));
+        fresh.sort((a, b) -> Integer.compare(b.votes, a.votes));
+        long day = System.currentTimeMillis() / 86_400_000L;
+        List<Catalog.Title> bigToday = today(big, 12, day), freshToday = today(fresh, 12, day + 1);
+        List<Pick> out = new ArrayList<>();
+        while (out.size() < n && (!bigToday.isEmpty() || !freshToday.isEmpty())) {
+            boolean takeFresh = !freshToday.isEmpty() && (out.size() % 2 == 0 || bigToday.isEmpty());
+            Catalog.Title t = (takeFresh ? freshToday : bigToday).remove(0);
+            out.add(new Pick(t, match(score(t)), takeFresh ? "New and rated " + String.format(java.util.Locale.US, "%.1f", t.rating)
+                    : "One of IMDb's biggest hits"));
+        }
+        return out;
+    }
+
+    /** The top few of a list, in an order that is the same all day and different tomorrow. */
+    private static List<Catalog.Title> today(List<Catalog.Title> sorted, int top, long seed) {
+        List<Catalog.Title> head = new ArrayList<>(sorted.subList(0, Math.min(top, sorted.size())));
+        Collections.shuffle(head, new Random(seed));
+        return head;
     }
 
     Pick pick(Catalog.Title t) {

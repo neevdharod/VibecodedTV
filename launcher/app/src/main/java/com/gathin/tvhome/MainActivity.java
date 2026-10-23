@@ -154,7 +154,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private String glowStyle;
     private ImageView heroArt;
     private static final float HERO_ART_ALPHA = 0.5f;
-    /** Apple TV mode: the streaming apps' top shelf is Queue's picks for that app, as full backdrops. */
+    /** Apple TV mode: the streaming apps' top shelf is IMDb's newest and biggest hits on that app (Taste.hits). */
     private static final float SHELF_ART_ALPHA = 1f;
     /** Apple TV mode: the band of frosted glass behind the dock (DockDecoration.setFrost). */
     private DockDecoration dockDecoration;
@@ -1707,7 +1707,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 try {
                     Taste t = Queue.taste(app);
                     synchronized (t) {
-                        loaded = t.next(SHELF_SIZE, elsewhere, service.isEmpty() ? null : service);
+                        loaded = t.hits(SHELF_SIZE, service.isEmpty() ? null : service, elsewhere);
                         events = t.events;
                     }
                 } catch (Exception e) {
