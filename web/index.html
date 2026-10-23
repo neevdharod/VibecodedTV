@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VibecodedTV</title>
+  <link rel="stylesheet" href="shared/tokens.css">
+  <link rel="stylesheet" href="home/home.css">
+  <link rel="stylesheet" href="home/backdrops.css">
+</head>
+<body>
+  <div class="stage" id="stage" data-theme="light">
+
+    <!-- Changeable backdrop: soft 3D shapes, or the current film's art for "Film" -->
+    <div class="backdrop" id="backdrop" data-backdrop="cloud">
+      <div class="film-bg" id="film-bg"></div>
+      <i class="s1"></i><i class="s2"></i><i class="s3"></i><i class="s4"></i>
+      <div class="veil"></div>
+    </div>
+
+    <!-- Home screen -->
+    <section class="home" id="home">
+      <div class="clock">
+        <div class="date" id="date"></div>
+        <div class="time"><span id="time">7:42</span><small id="ampm">PM</small></div>
+        <div class="greet" id="greet">Good evening</div>
+      </div>
+
+      <div class="status" id="status"></div>
+
+      <!-- Rotating banner: tonight's pick, new releases, your watchlist -->
+      <article class="banner glass" id="banner">
+        <div class="banner-art" id="banner-art"></div>
+        <div class="banner-body" id="banner-body"></div>
+        <button class="watch focusable" id="watch"><span class="play"></span><span>Watch on Queue</span></button>
+        <div class="dots" id="dots"></div>
+      </article>
+
+      <div class="row-label l-fav">Favourite Apps</div>
+      <div class="row fav" id="row-fav" data-row="fav"></div>
+      <div class="row-label l-more">More Options</div>
+      <div class="row more" id="row-more" data-row="more"></div>
+
+      <div class="move-hint glass" id="move-hint" hidden><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> Move &nbsp;·&nbsp; <kbd>OK</kbd> Done</div>
+      <div class="tile-menu glass" id="tile-menu" hidden></div>
+    </section>
+
+    <!-- Mirror Boost -->
+    <section class="mirror" id="mirror" hidden>
+      <div class="m-left">
+        <div class="eyebrow m-eyebrow"><span class="m-icon" id="m-icon"></span>Mirror Boost</div>
+        <h1 class="m-title" id="m-title">Let's speed up mirroring</h1>
+        <p class="m-sub" id="m-sub">A few things slow down AirPlay from your iPhone. Here's where your TV stands.</p>
+        <div class="checks glass" id="checks"></div>
+        <div class="m-actions" id="m-actions">
+          <button class="btn primary focusable" data-act="boost-mirror">Boost &amp; start mirroring</button>
+          <button class="btn focusable" data-act="boost">Boost only</button>
+          <button class="btn focusable" data-act="picture" id="m-picture" hidden>Picture settings</button>
+          <button class="btn focusable" data-act="undo">Undo</button>
+        </div>
+      </div>
+      <div class="m-right">
+        <div class="card score-card">
+          <svg viewBox="0 0 220 220" class="ring">
+            <circle cx="110" cy="110" r="96" class="ring-track"/>
+            <circle cx="110" cy="110" r="96" class="ring-fill" id="ring-fill"/>
+          </svg>
+          <div class="score-text"><b id="score">38</b><span>Mirror readiness</span></div>
+          <p class="score-note" id="score-note"></p>
+        </div>
+        <div class="card tips">
+          <h3>On your iPhone</h3>
+          <ol>
+            <li><b>Watching a video?</b> Tap the AirPlay icon inside the app (YouTube, Photos, Netflix) instead of mirroring. The TV fetches the video itself, in full quality and with no lag.</li>
+            <li><b>Mirroring your screen?</b> Control Center, then Screen Mirroring, then <em>Living Room TV</em>.</li>
+            <li><b>Same fast network.</b> Keep the iPhone on the 5 GHz network and Low Power Mode off.</li>
+          </ol>
+        </div>
+        <div class="card tip-wire">
+          <span class="tw-icon" id="tw-icon"></span>
+          <div><b>Biggest single fix</b><p>Plug the TV into the router with Ethernet. Mirroring then makes one wireless hop instead of two.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- App library: every app and input, add or remove from Home -->
+    <section class="library" id="library" hidden>
+      <div class="lib-head">
+        <h1>All apps</h1>
+        <p>Press OK to put an app on Home or take it off. On Home, hold OK on a tile to move it.</p>
+      </div>
+      <div class="lib-grid" id="lib-grid"></div>
+    </section>
+
+    <!-- Home settings sheet -->
+    <aside class="sheet glass" id="sheet" hidden>
+      <h2>Home settings</h2>
+      <div class="sheet-list" id="sheet-list"></div>
+      <p class="sheet-hint"><kbd>←</kbd><kbd>→</kbd> Change &nbsp;·&nbsp; <kbd>Back</kbd> Close</p>
+    </aside>
+
+    <!-- Screensaver -->
+    <div class="saver" id="saver" hidden></div>
+
+    <!-- Apps open full screen on top of Home -->
+    <div class="app-frame" id="app-frame" hidden>
+      <iframe id="app-iframe" title="App" allow="autoplay; encrypted-media; fullscreen"></iframe>
+    </div>
+
+    <div class="h-toast" id="h-toast"></div>
+    <div class="sample-badge" id="sample-badge">Sample · simulated TV data</div>
+  </div>
+
+  <script src="shared/tv.js"></script>
+  <script src="shared/icons.js"></script>
+  <script src="queue/catalog.js"></script>
+  <script src="queue/recommender.js"></script>
+  <script src="home/prefs.js"></script>
+  <script src="home/apps.js"></script>
+  <script src="home/device.js"></script>
+  <script src="home/mirror.js"></script>
+  <script src="home/banner.js"></script>
+  <script src="home/saver.js"></script>
+  <script src="home/settings.js"></script>
+  <script src="home/home.js"></script>
+</body>
+</html>

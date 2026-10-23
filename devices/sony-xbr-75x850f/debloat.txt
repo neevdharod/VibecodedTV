@@ -1,0 +1,93 @@
+# Sony BRAVIA XBR-75X850F (BRAVIA_ATV3_4K_UC, "BRAVIA 4K GB ATV3"), US firmware
+# Android TV 9, build PTT1.190515.001.S43 671651. Network: Ethernet.
+# Based on cleanyourtv's examples/sony-bravia-4k-gb-us (same platform family, firmware S54), trimmed to
+# what this owner agreed to on 2026-10-22. Every entry was checked to exist on this TV first.
+#
+# Apply:   TV_HOST=192.168.0.182 tools/disable.sh devices/sony-xbr-75x850f/debloat.txt
+# Undo:    TV_HOST=192.168.0.182 tools/restore.sh devices/sony-xbr-75x850f/debloat.txt
+# Everything is DISABLED for user 0, never uninstalled.
+#
+# 2026-10-22, second pass: the owner asked to remove everything except Inputs, Settings, Netflix,
+# Prime Video, Disney+, ESPN, Spotify, the Play Store, and the new Queue and Mirror Boost apps.
+# Apps the owner installed were uninstalled (reinstall from the Play Store): see uninstalled.txt.
+#
+# Kept because the keep-list needs them, or because the TV does:
+#   com.sony.dtv.tvx, tvxlauncher.programguide, tvinput.*, braviasync* (Inputs, HDMI, HDMI-CEC)
+#   com.android.tv.settings, sony configsettings/panelsettings/audiooutput/networksettings (Settings)
+#   com.sony.dtv.scrums.action, tvdotactiondevicecontrol (the remote's Action Menu picture/sound cards)
+#   com.android.vending, com.google.android.gms, gsf and sign-in plumbing (Play Store)
+#   com.ionitech.airscreen (the AirPlay receiver behind Mirror Boost)
+#   com.sony.dtv.dialservice (lets Netflix's own cast button on a phone reach the TV)
+#   com.google.android.tvlauncher (until the new home screen replaces it)
+#   com.google.android.inputmethod.latin (the only keyboard), bluetooth, USB storage, core Android
+#   com.sony.dtv.systemupdate (firmware updates), b2b hotel/pro plumbing (left alone upstream too)
+
+# ACR viewing tracker
+tv.samba.ssm                                   # Samba TV fingerprints what's on screen
+
+# Sony and Google content, ads and promos
+com.sony.dtv.sonyselect                        # Sony Select app store/promo tile
+com.sony.dtv.promos                            # My BRAVIA promos
+com.sony.dtv.discovery                         # Sony Discover content bar
+com.sony.dtv.bivlinfo                          # BIVL content service list (feeds Discover)
+com.sony.dtv.tvlaunchercustomizer              # Sony tweaks to the stock home rows
+com.google.android.tvrecommendations           # recommendation rows for the stock launcher
+android.autoinstalls.config.sony.bravia        # Play auto-install of partner apps
+
+# Retail demo
+com.sony.dtv.demomode
+com.sony.dtv.demosupport
+com.sony.dtv.multiscreendemo
+
+# Telemetry, remote support and feedback
+com.sony.dtv.da.service                        # Sony device agent / remote support
+com.qterics.da.product                         # Qterics device agent
+com.sony.dtv.sonybugreportsys
+com.google.android.tv.bugreportsender
+com.google.android.feedback
+
+# Help and manual
+com.sony.dtv.customersupport                   # Help tile
+com.sony.dtv.smarthelp
+com.sony.dtv.imanual                           # i-Manual
+
+# Second pass: features (owner asked for everything but the keep-list)
+com.google.android.apps.mediashell             # Chromecast built-in
+com.google.android.katniss                     # Google Assistant / voice search
+com.google.android.speech.pumpkin              # offline speech for the Assistant
+com.sony.dtv.voicerecognitionconfirmation      # voice prompt
+com.google.android.tv.remote.service           # Android TV phone-app remote
+com.sony.dtv.seconddispsetting                 # phone-as-second-screen setup
+com.google.android.backdrop                    # ambient screensaver
+com.google.android.marvin.talkback             # screen reader
+screnmirroring.com                             # Miracast (iPhones can't use it)
+com.sony.dtv.networkapp.wifidirect
+com.sony.huey.dlna.module                      # DLNA renderer
+com.sony.huey.dlna.renderersettings
+com.sonyericsson.dlna
+com.sony.dtv.homenetwork                       # DLNA home-network settings
+com.sony.dtv.smarthomesettings                 # Works with Alexa setup
+com.sony.dtv.HomeTheatreControl                # network control of Sony AV receivers
+com.sony.dtv.b2b.vendorprotocol                # Node.js SDDP broadcaster for home automation
+com.sony.dtv.irblaster                         # IR blaster for cable boxes
+com.sony.dtv.irbservice
+com.uei.quicksetsdk.sony                       # IR code database for the blaster
+com.sony.dtv.hddmgr                            # USB hard-drive recording
+com.sony.dtv.rcplayer                          # recordings player
+com.sony.dtv.rcplayer.service
+com.sony.dtv.rvuapkdisabler                    # RVU (DirecTV) helper; RVU itself was already off
+com.sony.dtv.interactivetvutil                 # action and app log collectors (telemetry)
+com.sony.dtv.smartmediaapp                     # USB media player
+com.sony.dtv.osat.music                        # USB music player
+
+# Second pass: built-in apps not on the keep-list
+com.google.android.youtube.tv                  # YouTube
+com.google.android.youtube.tvmusic             # YouTube Music
+com.google.android.videos                      # Google TV / Play Movies
+com.google.android.play.games                  # Play Games
+air.com.vudu.air.DownloaderTablet              # Vudu
+com.crackle.androidtv                          # Crackle
+
+# Replaced by the VibecodedTV home screen (com.vibecoded.tv/.HomeActivity). restore.sh turns it back on
+# and hands Home back to it.
+com.google.android.tvlauncher                  # Google's stock home screen

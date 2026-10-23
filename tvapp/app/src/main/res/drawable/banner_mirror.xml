@@ -1,0 +1,15 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp" android:height="180dp" android:viewportWidth="320" android:viewportHeight="180">
+    <path android:pathData="M0,0h320v180h-320z">
+        <aapt:attr name="android:fillColor" xmlns:aapt="http://schemas.android.com/aapt">
+            <gradient android:type="linear" android:startX="0" android:startY="0" android:endX="320" android:endY="180"
+                android:startColor="#1B1F5E" android:endColor="#8D9BFF" />
+        </aapt:attr>
+    </path>
+    <!-- a TV and a phone -->
+    <path android:pathData="M100,50h90a8,8 0,0 1,8 8v54a8,8 0,0 1,-8 8h-90a8,8 0,0 1,-8 -8v-54a8,8 0,0 1,8 -8z"
+        android:strokeColor="#FFFFFF" android:strokeWidth="7" android:fillColor="#00000000" />
+    <path android:pathData="M128,136h34" android:strokeColor="#FFFFFF" android:strokeWidth="7" android:strokeLineCap="round" />
+    <path android:pathData="M196,82h28a8,8 0,0 1,8 8v46a8,8 0,0 1,-8 8h-28a8,8 0,0 1,-8 -8v-46a8,8 0,0 1,8 -8z"
+        android:strokeColor="#FFFFFF" android:strokeWidth="7" android:fillColor="#4B57D6" />
+</vector>

@@ -1,0 +1,24 @@
+# Apps the owner had installed and asked to remove on 2026-10-22. Reinstall any of them from the Play Store.
+com.apple.atve.androidtv.appletv
+com.benq.screenshareios
+com.boost.airplay.receiver
+com.britbox.tv
+com.cbs.ott
+com.cbsnews.ott
+com.disney.datg.videoplatforms.android.watchdc
+com.foxsports.android
+com.google.android.youtube.tvunplugged
+com.hulu.livingroomplus
+com.instagram.airwave
+com.nbcsports.apps.tv
+com.nero.swiftlink.mirror.tv
+com.peacocktv.peacockandroid
+com.rkgames.basisgame
+com.sand.aircasttv
+com.showtime.standalone
+com.smilieideas.googlephotostv
+com.tcl.browser
+com.tubitv
+com.yodo1.crossyroad
+in.startv.hotstartvonly
+tv.pluto.android

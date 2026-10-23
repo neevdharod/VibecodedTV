@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One Queue card: the cover full screen (its scrim baked in, QueueActivity.bakeScrim) and the text
+     bottom-left. Two of these slide. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent" android:background="#000000">
+
+    <ImageView android:id="@+id/art" android:layout_width="match_parent" android:layout_height="match_parent"
+        android:scaleType="centerCrop" android:importantForAccessibility="no" />
+
+    <LinearLayout android:id="@+id/info" android:layout_width="600dp" android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start" android:layout_marginStart="56dp" android:layout_marginBottom="44dp"
+        android:orientation="vertical">
+
+        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal">
+            <TextView android:id="@+id/match" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:fontFamily="@font/outfit_medium" android:textColor="#FF3DDC7A" android:textSize="15sp" />
+            <TextView android:id="@+id/why" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginStart="10dp" android:fontFamily="@font/outfit_regular" android:textColor="#CCFFFFFF"
+                android:textSize="15sp" android:singleLine="true" android:ellipsize="end" />
+        </LinearLayout>
+
+        <TextView android:id="@+id/title" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginTop="6dp" android:fontFamily="@font/outfit_medium" android:textColor="#FFFFFFFF"
+            android:textSize="44sp" android:letterSpacing="-0.02" android:maxLines="2" android:ellipsize="end"
+            android:lineSpacingMultiplier="0.92" />
+
+        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10dp"
+            android:orientation="horizontal" android:gravity="center_vertical">
+            <TextView android:id="@+id/year" style="@style/QueueMeta" />
+            <TextView android:id="@+id/cert" style="@style/QueueMeta" android:layout_marginStart="12dp"
+                android:background="@drawable/queue_cert" android:paddingStart="5dp" android:paddingEnd="5dp" android:textSize="12sp" />
+            <TextView android:id="@+id/length" style="@style/QueueMeta" android:layout_marginStart="12dp" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="12dp"
+                android:background="@drawable/queue_imdb" android:paddingStart="5dp" android:paddingEnd="5dp"
+                android:fontFamily="@font/outfit_medium" android:text="IMDb" android:textColor="#FF000000" android:textSize="12sp"
+                android:textStyle="bold" />
+            <TextView android:id="@+id/rating" style="@style/QueueMeta" android:layout_marginStart="6dp" android:fontFamily="@font/outfit_medium" />
+            <TextView android:id="@+id/votes" style="@style/QueueMeta" android:layout_marginStart="5dp" android:alpha="0.6" android:textSize="12sp" />
+        </LinearLayout>
+
+        <TextView android:id="@+id/genres" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginTop="6dp" android:fontFamily="@font/outfit_regular" android:textColor="#E6FFFFFF"
+            android:textSize="15sp" android:singleLine="true" android:ellipsize="end" />
+
+        <TextView android:id="@+id/overview" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="10dp" android:fontFamily="@font/outfit_regular" android:textColor="#D9FFFFFF"
+            android:textSize="15sp" android:maxLines="3" android:ellipsize="end" android:lineSpacingMultiplier="1.15" />
+
+        <TextView android:id="@+id/watch" android:layout_width="wrap_content" android:layout_height="40dp"
+            android:layout_marginTop="16dp" android:background="@drawable/queue_pill" android:gravity="center"
+            android:paddingStart="20dp" android:paddingEnd="22dp" android:fontFamily="@font/outfit_medium"
+            android:textColor="#FF101014" android:textSize="15sp" />
+    </LinearLayout>
+</FrameLayout>

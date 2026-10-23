@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Queue recommender check</title>
+  <style>
+    body { background: #0b0c0f; color: #e8e9ec; font: 15px/1.5 ui-monospace, Menlo, monospace; padding: 24px; }
+    .pass { color: #45e08f; } .fail { color: #ff6464; }
+  </style>
+</head>
+<body>
+  <h1>Queue recommender check</h1>
+  <p>Simulated viewers with a fixed taste scroll the feed, loving what they like and passing on the rest.
+     Each check expects the feed to find most of the films that viewer would love within 25 clips.</p>
+  <pre id="out"></pre>
+  <script src="catalog.js"></script>
+  <script src="recommender.js"></script>
+  <script>
+    const out = document.getElementById("out");
+    const log = (s, cls) => { const span = document.createElement("span"); if (cls) span.className = cls; span.textContent = s + "\n"; out.append(span); };
+    const memStore = () => { const d = {}; return { getItem: (k) => d[k] ?? null, setItem: (k, v) => { d[k] = v; } }; };
+
+    function simulate(name, moods, likes, need, steps = 25) {
+      const rec = new Recommender(window.QUEUE_CATALOG, memStore());
+      rec.session = "sim";   // fixed exploration noise, so the check gives the same answer every run
+      rec.setMoods(moods);
+      const shown = [];
+      let hits = 0;
+      for (let i = 0; i < steps; i++) {
+        const [item] = rec.queue(1, { recent: shown, exclude: shown });
+        if (!item) break;
+        shown.push(item.movie.id);
+        const liked = likes(item.movie);
+        if (liked) hits++;
+        rec.record(item.movie.id, liked ? "love" : "pass");
+      }
+      // Recall: of the films this viewer would love (up to the number of clips shown), how many
+      // did the feed find? The catalog only has so many horror films, so "last ten" can't work.
+      const pool = rec.catalog.filter(likes).length;
+      const recall = hits / Math.min(pool, steps);
+      const ok = recall >= need;
+      const first = shown.slice(0, 8).map((id) => rec.byId[id]).filter(likes).length;
+      log(`${ok ? "PASS" : "FAIL"}  ${name}: found ${hits} of ${Math.min(pool, steps)} they'd love in ${shown.length} clips (${Math.round(recall * 100)}%, need ${need * 100}%); ${first}/8 of the first eight`, ok ? "pass" : "fail");
+      log("      feed: " + shown.map((id) => rec.byId[id].title).join(", "));
+      return ok;
+    }
+
+    const results = [
+      simulate("Horror fan", ["Horror"], (m) => m.genres.includes("Horror"), 0.8),
+      simulate("Feel-good fan", ["Comedy", "Animation"], (m) => m.tags.includes("feel-good") || m.tags.includes("cozy"), 0.6),
+      simulate("Mind-bending sci-fi fan", ["Sci-Fi"], (m) => m.tags.includes("mind-bending") || ["Christopher Nolan", "Denis Villeneuve"].includes(m.director), 0.6),
+      // Picked Action as a mood but actually loves romance: the feed should follow behaviour.
+      simulate("Says Action, loves Romance", ["Action"], (m) => m.genres.includes("Romance"), 0.6),
+    ];
+    const all = results.every(Boolean);
+    log(all ? "\nALL PASS" : "\nSOME FAILED", all ? "pass" : "fail");
+    document.title = all ? "PASS" : "FAIL";
+  </script>
+</body>
+</html>

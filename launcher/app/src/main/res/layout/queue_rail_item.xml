@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="80dp" android:layout_height="wrap_content" android:layout_marginBottom="14dp"
+    android:gravity="center_horizontal" android:orientation="vertical">
+    <FrameLayout android:id="@+id/circle" android:layout_width="52dp" android:layout_height="52dp" android:background="@drawable/queue_round">
+        <ImageView android:id="@+id/icon" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center"
+            android:importantForAccessibility="no" />
+    </FrameLayout>
+    <TextView android:id="@+id/label" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_marginTop="6dp" android:fontFamily="@font/outfit_regular" android:textColor="#E6FFFFFF" android:textSize="12sp"
+        android:shadowColor="#80000000" android:shadowRadius="6" />
+</LinearLayout>

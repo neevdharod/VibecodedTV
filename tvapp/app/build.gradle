@@ -1,0 +1,41 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.vibecoded.tv'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.vibecoded.tv'
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName '0.1'
+    }
+
+    // The home screen, Queue and Mirror Boost are the same web code as the browser sample
+    // (../../web), served to the WebView from the APK's assets.
+    sourceSets {
+        main.assets.srcDirs += ['../../web']
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // Sideloaded over ADB, never published: signed with the debug key.
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // WebViewAssetLoader: serves the bundled web code from an https origin, which YouTube's player needs.
+    implementation 'androidx.webkit:webkit:1.11.0'
+}

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/queueRoot" android:layout_width="match_parent" android:layout_height="match_parent">
+
+    <include android:id="@+id/pageA" layout="@layout/queue_page" />
+    <include android:id="@+id/pageB" layout="@layout/queue_page" />
+
+    <TextView android:id="@+id/brand" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_gravity="top|start" android:layout_marginStart="56dp" android:layout_marginTop="34dp"
+        android:fontFamily="@font/outfit_medium" android:text="Queue" android:textColor="#FFFFFFFF" android:textSize="22sp"
+        android:shadowColor="#99000000" android:shadowRadius="10" />
+    <TextView android:id="@+id/hints" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_gravity="top|end" android:layout_marginEnd="56dp" android:layout_marginTop="38dp"
+        android:fontFamily="@font/outfit_regular" android:textColor="#B3FFFFFF" android:textSize="13sp"
+        android:shadowColor="#99000000" android:shadowRadius="8" />
+
+    <LinearLayout android:id="@+id/rail" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_gravity="end|center_vertical" android:layout_marginEnd="40dp" android:orientation="vertical">
+        <include android:id="@+id/railLove" layout="@layout/queue_rail_item" />
+        <include android:id="@+id/railPass" layout="@layout/queue_rail_item" />
+        <include android:id="@+id/railSave" layout="@layout/queue_rail_item" />
+    </LinearLayout>
+
+    <TextView android:id="@+id/toast" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal" android:layout_marginTop="80dp" android:alpha="0"
+        android:background="@drawable/queue_toast" android:paddingStart="20dp" android:paddingEnd="20dp"
+        android:paddingTop="10dp" android:paddingBottom="10dp" android:fontFamily="@font/outfit_regular"
+        android:textColor="#FFFFFFFF" android:textSize="14sp" />
+
+    <TextView android:id="@+id/credit" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end" android:layout_marginEnd="24dp" android:layout_marginBottom="12dp"
+        android:fontFamily="@font/outfit_regular" android:textColor="#66FFFFFF" android:textSize="10sp" />
+</FrameLayout>

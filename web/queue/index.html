@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Queue</title>
+  <link rel="stylesheet" href="../shared/tokens.css">
+  <link rel="stylesheet" href="queue.css">
+</head>
+<body>
+  <div class="stage" id="stage" data-theme="light">
+
+    <!-- Soft sky behind the light screens (moods, favourites, watchlist, taste) -->
+    <div class="sky" id="sky"><i class="c1"></i><i class="c2"></i><i class="c3"></i><i class="dune"></i></div>
+
+    <header class="qbar">
+      <span class="qlogo">Queue</span>
+      <span class="segs" id="segs"></span>
+      <span class="filter" id="filter" hidden></span>
+      <span class="step" id="step"></span>
+    </header>
+
+    <!-- 1/2: moods -->
+    <section class="screen center" id="onboard-genres" hidden>
+      <h1 class="q-title">What are you in the mood for?</h1>
+      <p class="q-sub">Pick as many as you like</p>
+      <div class="genre-grid" id="genre-grid"></div>
+      <button class="cta focusable" id="genres-next">Continue <span class="arrow">→</span></button>
+    </section>
+
+    <!-- 2/2: films you already love -->
+    <section class="screen center" id="onboard-seeds" hidden>
+      <h1 class="q-title">Any of these you already love?</h1>
+      <p class="q-sub">Pick as many as you like</p>
+      <div class="poster-grid" id="seed-grid"></div>
+      <button class="cta focusable" id="seeds-next">Start watching <span class="arrow">→</span></button>
+    </section>
+
+    <!-- The feed: one trailer clip at a time -->
+    <section class="feed" id="feed" hidden>
+      <div class="slides" id="slides"></div>
+      <div class="scrim"></div>
+
+      <nav class="nav glass-dark" id="nav">
+        <button class="nav-btn" data-go="browse" title="For you"></button>
+        <button class="nav-btn" data-go="search" title="Search"></button>
+        <button class="nav-btn" data-go="watchlist" title="Watchlist"></button>
+        <button class="nav-btn" data-go="taste" title="Your taste"></button>
+      </nav>
+
+      <div class="info" id="info"></div>
+      <div class="clip">
+        <div class="clip-bar"><i id="progress"></i></div>
+        <span class="clip-time" id="clip-time">0:00 / 0:30</span>
+      </div>
+
+      <nav class="rail" id="rail">
+        <button class="rail-btn" data-act="love"><span class="ic"></span><span class="lbl">Love</span></button>
+        <button class="rail-btn" data-act="pass"><span class="ic"></span><span class="lbl">Not for me</span></button>
+        <button class="rail-btn" data-act="save"><span class="ic"></span><span class="lbl">Watchlist</span></button>
+        <button class="rail-btn" data-act="sound"><span class="ic"></span><span class="lbl">Mute</span></button>
+      </nav>
+
+      <div class="burst" id="burst"></div>
+    </section>
+
+    <!-- Browse: sidebar + For you / Search / Genres -->
+    <section class="browse" id="browse" hidden>
+      <div class="b-bg" id="b-bg"></div>
+      <aside class="b-side">
+        <div class="b-list" id="b-list"></div>
+        <p class="b-credits">Ratings courtesy of IMDb. Trailers play from YouTube. Posters from Wikipedia.</p>
+      </aside>
+      <div class="b-content" id="b-content"></div>
+    </section>
+
+    <!-- Light panels -->
+    <section class="screen panel" id="watchlist" hidden></section>
+    <section class="screen panel" id="taste" hidden></section>
+
+    <div class="toast" id="toast"></div>
+  </div>
+
+  <script src="../shared/tv.js"></script>
+  <script src="../shared/icons.js"></script>
+  <script src="genre-icons.js"></script>
+  <script src="catalog.js"></script>
+  <script src="recommender.js"></script>
+  <script src="queue.js"></script>
+  <script src="https://www.youtube.com/iframe_api" async></script>
+</body>
+</html>

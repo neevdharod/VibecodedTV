@@ -1,0 +1,127 @@
+/* Backdrops. Each is a base gradient plus four soft shapes (s1-s4) that drift very slowly.
+   Light ones: cloud, sunrise, mint. Dark ones: dusk, midnight, film. */
+.backdrop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--b-base);
+  transition: background 1s var(--ease);
+}
+.backdrop i {
+  position: absolute;
+  border-radius: 50%;
+  transition: background 1.2s var(--ease), opacity 1.2s var(--ease);
+  will-change: transform;
+}
+.backdrop .s1 { width: 980px; height: 980px; right: -170px; top: -330px; background: var(--b-s1); filter: blur(4px); animation: drift-a 38s ease-in-out infinite alternate; }
+.backdrop .s2 { width: 760px; height: 760px; left: -330px; top: 300px; background: var(--b-s2); filter: blur(6px); animation: drift-b 44s ease-in-out infinite alternate; }
+.backdrop .s3 { width: 1250px; height: 1250px; right: -420px; bottom: -820px; background: var(--b-s3); filter: blur(10px); animation: drift-c 52s ease-in-out infinite alternate; }
+/* A soft ring, like the white ribbon in the mockup. */
+.backdrop .s4 {
+  width: 1300px;
+  height: 640px;
+  left: 180px;
+  bottom: -330px;
+  border: 110px solid var(--b-s4);
+  filter: blur(18px);
+  transform: rotate(-8deg);
+  animation: drift-d 60s ease-in-out infinite alternate;
+}
+.backdrop .veil { position: absolute; inset: 0; background: var(--b-veil); }
+.backdrop .film-bg {
+  position: absolute;
+  inset: -80px;
+  background: #000 center/cover no-repeat;
+  filter: blur(46px) brightness(0.5) saturate(1.25);
+  opacity: 0;
+  transition: opacity 1s var(--ease), background-image 1s;
+}
+@keyframes drift-a { to { transform: translate(-60px, 40px) scale(1.04); } }
+@keyframes drift-b { to { transform: translate(50px, -30px) scale(1.06); } }
+@keyframes drift-c { to { transform: translate(-80px, -40px) scale(1.03); } }
+@keyframes drift-d { to { transform: rotate(-4deg) translate(60px, -20px); } }
+
+/* Cloud: the mockup. Pale blue glass sphere top-right, warm cream forms left, blue swell bottom-right. */
+.backdrop[data-backdrop="cloud"] {
+  --b-base: linear-gradient(160deg, #f6f7fa 0%, #eceff4 55%, #e6ebf2 100%);
+  --b-s1: radial-gradient(circle at 34% 30%, #ffffff 0%, #dbe7f8 22%, #a9c6ef 56%, #7fa6e0 80%, #9bbbe9 100%);
+  --b-s2: radial-gradient(circle at 62% 34%, #ffffff 0%, #f6ece4 34%, #e8d3c2 70%, #dcc2ae 100%);
+  --b-s3: radial-gradient(circle at 38% 26%, #ffffff 0%, #dfe9f7 34%, #b5cdee 70%, #9ab9e6 100%);
+  --b-s4: rgba(255, 255, 255, 0.75);
+  --b-veil: linear-gradient(90deg, rgba(246, 247, 250, 0.55), rgba(246, 247, 250, 0.1) 45%);
+}
+.backdrop[data-backdrop="sunrise"] {
+  --b-base: linear-gradient(160deg, #fdf4ee 0%, #f7e8ee 60%, #efe6f7 100%);
+  --b-s1: radial-gradient(circle at 34% 30%, #ffffff 0%, #fde3d3 24%, #f6b597 60%, #ef9a7e 100%);
+  --b-s2: radial-gradient(circle at 62% 34%, #ffffff 0%, #efe4fb 34%, #cdb9f0 75%, #b9a2ea 100%);
+  --b-s3: radial-gradient(circle at 38% 26%, #ffffff 0%, #fbe1ea 36%, #f2b9cc 72%, #eaa3bb 100%);
+  --b-s4: rgba(255, 255, 255, 0.7);
+  --b-veil: linear-gradient(90deg, rgba(253, 244, 238, 0.55), rgba(253, 244, 238, 0.08) 45%);
+}
+.backdrop[data-backdrop="mint"] {
+  --b-base: linear-gradient(160deg, #f1f8f5 0%, #e7f2ef 60%, #e3edf5 100%);
+  --b-s1: radial-gradient(circle at 34% 30%, #ffffff 0%, #d7f1e8 24%, #9fd8c4 60%, #7cc6ae 100%);
+  --b-s2: radial-gradient(circle at 62% 34%, #ffffff 0%, #eef5e3 34%, #d3e6bf 75%, #c2dbaa 100%);
+  --b-s3: radial-gradient(circle at 38% 26%, #ffffff 0%, #dcecf8 36%, #b3d3ee 72%, #97c1e6 100%);
+  --b-s4: rgba(255, 255, 255, 0.7);
+  --b-veil: linear-gradient(90deg, rgba(241, 248, 245, 0.55), rgba(241, 248, 245, 0.08) 45%);
+}
+.backdrop[data-backdrop="dusk"] {
+  --b-base: linear-gradient(160deg, #0d1124 0%, #141a36 55%, #1a1533 100%);
+  --b-s1: radial-gradient(circle at 34% 30%, #8ea3ff 0%, #4a5bd0 30%, #2a338a 66%, #1b2160 100%);
+  --b-s2: radial-gradient(circle at 62% 34%, #c79cff 0%, #7a4bc4 34%, #45287e 75%, #2c1a55 100%);
+  --b-s3: radial-gradient(circle at 38% 26%, #6fd0ff 0%, #2f74b8 34%, #183e72 72%, #10294d 100%);
+  --b-s4: rgba(160, 175, 255, 0.12);
+  --b-veil: linear-gradient(90deg, rgba(10, 12, 26, 0.6), rgba(10, 12, 26, 0.1) 50%);
+}
+.backdrop[data-backdrop="midnight"] {
+  --b-base: linear-gradient(160deg, #07080b 0%, #0b0d12 100%);
+  --b-s1: radial-gradient(circle at 34% 30%, #3a4566 0%, #1c2233 45%, #10131c 100%);
+  --b-s2: radial-gradient(circle at 62% 34%, #2b3348 0%, #151a26 50%, #0c0f16 100%);
+  --b-s3: radial-gradient(circle at 38% 26%, #26304a 0%, #121725 50%, #0a0c12 100%);
+  --b-s4: rgba(255, 255, 255, 0.04);
+  --b-veil: linear-gradient(90deg, rgba(7, 8, 11, 0.5), transparent 50%);
+}
+.backdrop[data-backdrop="film"] {
+  --b-base: #07080b;
+  --b-s1: transparent;
+  --b-s2: transparent;
+  --b-s3: transparent;
+  --b-s4: transparent;
+  --b-veil: linear-gradient(90deg, rgba(7, 8, 11, 0.55), rgba(7, 8, 11, 0.15) 60%);
+}
+.backdrop[data-backdrop="film"] .film-bg { opacity: 1; }
+
+/* Fast mode: the whole backdrop is one pre-painted layer (shapes as soft radial gradients, the veil
+   folded in) instead of five stacked full-screen layers, which this TV's GPU can't redraw at 60 fps. */
+html.lite .backdrop i, html.lite .backdrop .veil { display: none; }
+html.lite .backdrop .film-bg { filter: brightness(0.45) saturate(1.2); }
+html.lite .backdrop {
+  background:
+    var(--l-veil),
+    radial-gradient(circle 560px at 86% 0%, var(--l1) 0%, var(--l1) 38%, transparent 100%),
+    radial-gradient(circle 430px at 0% 64%, var(--l2) 0%, var(--l2) 40%, transparent 100%),
+    radial-gradient(circle 760px at 96% 122%, var(--l3) 0%, var(--l3) 42%, transparent 100%),
+    var(--b-base);
+}
+html.lite .backdrop[data-backdrop="cloud"] { --l1: #b7cff1; --l2: #ecdccf; --l3: #c3d6f1;
+  --l-veil: linear-gradient(90deg, rgba(246, 247, 250, 0.5), rgba(246, 247, 250, 0) 45%); }
+html.lite .backdrop[data-backdrop="sunrise"] { --l1: #f7c3a8; --l2: #d6c6f2; --l3: #f4c7d6;
+  --l-veil: linear-gradient(90deg, rgba(253, 244, 238, 0.5), rgba(253, 244, 238, 0) 45%); }
+html.lite .backdrop[data-backdrop="mint"] { --l1: #ade0cf; --l2: #dbecd0; --l3: #bdd8ef;
+  --l-veil: linear-gradient(90deg, rgba(241, 248, 245, 0.5), rgba(241, 248, 245, 0) 45%); }
+html.lite .backdrop[data-backdrop="dusk"] { --l1: #3a49b0; --l2: #5d3699; --l3: #255f99;
+  --l-veil: linear-gradient(90deg, rgba(10, 12, 26, 0.55), rgba(10, 12, 26, 0) 50%); }
+html.lite .backdrop[data-backdrop="midnight"] { --l1: #1f2638; --l2: #191e2b; --l3: #172033;
+  --l-veil: linear-gradient(90deg, rgba(7, 8, 11, 0.5), rgba(7, 8, 11, 0) 50%); }
+html.lite .backdrop[data-backdrop="film"] { --l1: transparent; --l2: transparent; --l3: transparent;
+  --l-veil: linear-gradient(90deg, rgba(7, 8, 11, 0.55), rgba(7, 8, 11, 0.15) 60%); }
+
+/* Small previews of each backdrop for the settings sheet. */
+.swatch { width: 54px; height: 32px; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--line); flex: none; }
+.swatch.cloud { background: radial-gradient(circle at 80% 10%, #a9c6ef 30%, transparent 32%), radial-gradient(circle at 10% 90%, #e8d3c2 30%, transparent 32%), #eef1f5; }
+.swatch.sunrise { background: radial-gradient(circle at 80% 10%, #f6b597 30%, transparent 32%), radial-gradient(circle at 10% 90%, #cdb9f0 30%, transparent 32%), #fbefee; }
+.swatch.mint { background: radial-gradient(circle at 80% 10%, #9fd8c4 30%, transparent 32%), radial-gradient(circle at 10% 90%, #d3e6bf 30%, transparent 32%), #edf6f2; }
+.swatch.dusk { background: radial-gradient(circle at 80% 10%, #4a5bd0 30%, transparent 32%), radial-gradient(circle at 10% 90%, #7a4bc4 30%, transparent 32%), #11152b; }
+.swatch.midnight { background: radial-gradient(circle at 80% 10%, #2b3348 30%, transparent 32%), #090a0e; }
+.swatch.film { background: linear-gradient(135deg, #c77b3c, #3a2414 60%, #0b0806); }

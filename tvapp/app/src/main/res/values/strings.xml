@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">VibecodedTV</string>
+    <string name="queue_name">Queue</string>
+    <string name="mirror_name">Mirror Boost</string>
+</resources>

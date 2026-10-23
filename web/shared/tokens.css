@@ -1,0 +1,130 @@
+/* VibecodedTV design tokens. Every screen is laid out on a fixed 1920x1080 canvas (the TV's
+   real resolution) and scaled to fit, so pixel values here are TV pixels. */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@200;300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap");
+
+:root {
+  --bg: #060709;
+  --surface: rgba(255, 255, 255, 0.06);
+  --surface-strong: rgba(255, 255, 255, 0.1);
+  --line: rgba(255, 255, 255, 0.09);
+  --text: #f5f6f8;
+  --text-2: rgba(245, 246, 248, 0.68);
+  --text-3: rgba(245, 246, 248, 0.42);
+  --accent: #ff4d3d;        /* Queue */
+  --accent-2: #7c8cff;      /* Mirror Boost */
+  --good: #45e08f;
+  --warn: #ffbf47;
+  --bad: #ff6464;
+
+  --r-sm: 12px;
+  --r-md: 20px;
+  --r-lg: 32px;
+  --pad-x: 96px;            /* TV overscan-safe side margin (5%) */
+  --pad-y: 64px;
+
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --serif: "Instrument Serif", Georgia, serif;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+
+  --focus: #ff7a45;         /* the one focus colour, from the home screen mockup */
+  --glass-bg: rgba(16, 18, 24, 0.5);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --tile-bg: rgba(18, 20, 28, 0.62);
+  --shadow: 0 12px 34px rgba(0, 0, 0, 0.35);
+}
+
+/* Light theme, used by the light backdrops on the home screen. Apps like Queue stay dark. */
+.stage[data-theme="light"] {
+  --bg: #eef2f7;
+  --surface: rgba(255, 255, 255, 0.55);
+  --surface-strong: rgba(255, 255, 255, 0.85);
+  --line: rgba(20, 24, 33, 0.08);
+  --text: #14171d;
+  --text-2: rgba(20, 23, 29, 0.64);
+  --text-3: rgba(20, 23, 29, 0.46);
+  --glass-bg: rgba(255, 255, 255, 0.5);
+  --glass-border: rgba(255, 255, 255, 0.85);
+  --tile-bg: rgba(255, 255, 255, 0.62);
+  --shadow: 0 12px 34px rgba(48, 66, 102, 0.12);
+  color: var(--text);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
+
+html, body {
+  background: #000;
+  color: var(--text);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+  overflow: hidden;
+}
+
+/* The 1920x1080 stage; tv-scale.js sets --scale so it fills its container. */
+.stage {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1920px;
+  height: 1080px;
+  transform: translate(-50%, -50%) scale(var(--scale, 0.5));
+  transform-origin: center;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.eyebrow {
+  font-size: 19px;
+  font-weight: 500;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(28px) saturate(1.4);
+  -webkit-backdrop-filter: blur(28px) saturate(1.4);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  height: 52px;
+  padding: 0 22px;
+  border-radius: 999px;
+  font-size: 21px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+.pill svg { width: 24px; height: 24px; }
+
+/* ---------- Fast mode for the TV's 32-bit chip ----------
+   Live blur (backdrop-filter) and anything that animates forever make the TV recomposite the whole
+   1080p screen every frame: 74% CPU idle and ~3 fps measured on the Sony. In lite mode glass becomes
+   nearly solid, nothing loops, and focus changes only move pre-rendered layers. */
+html.lite * { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+html.lite .stage { --shadow: 0 4px 12px rgba(0, 0, 0, 0.18); --glass-bg: rgba(24, 26, 34, 0.92); --tile-bg: rgba(26, 28, 37, 0.94); }
+html.lite .stage[data-theme="light"] { --shadow: 0 4px 12px rgba(48, 66, 102, 0.1); --glass-bg: rgba(255, 255, 255, 0.9); --tile-bg: rgba(255, 255, 255, 0.92); }
+
+/* IMDb rating badge and US age-rating box. */
+.imdb { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; }
+.imdb b { padding: 2px 8px; border-radius: 6px; font-size: 0.78em; font-weight: 800; letter-spacing: -0.01em; color: #000; background: #f5c518; }
+.imdb small { font-size: 0.82em; font-weight: 400; opacity: 0.7; }
+.cert { padding: 1px 9px; border-radius: 7px; font-size: 0.82em; font-weight: 600; border: 1.5px solid currentColor; opacity: 0.85; }
+
+.sample-badge {
+  position: absolute;
+  z-index: 50;
+  right: 24px;
+  bottom: 18px;
+  font-size: 15px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
