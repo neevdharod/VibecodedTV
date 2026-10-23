@@ -51,6 +51,19 @@ final class ImageLoader {
 
     /** The same, with transform applied before caching; tag names the transform in the cache. */
     static void load(String url, int maxWidth, String tag, Transform transform, Done done) {
+        load(url, maxWidth, tag, transform, false, done);
+    }
+
+    /** Pictures with transparency (logos) need alpha: keep them ARGB instead of the usual RGB_565. */
+    static void loadWithAlpha(String url, int maxWidth, Done done) {
+        load(url, maxWidth, "argb", null, true, done);
+    }
+
+    static Bitmap cachedWithAlpha(String url) {
+        return cached(url, "argb");
+    }
+
+    private static void load(String url, int maxWidth, String tag, Transform transform, boolean alpha, Done done) {
         if (url == null) { if (done != null) done.loaded(null); return; }
         String key = key(url, tag);
         Bitmap hit = CACHE.get(key);
@@ -63,7 +76,7 @@ final class ImageLoader {
             PENDING.put(key, waiting);
         }
         POOL.execute(() -> {
-            Bitmap bmp = fetch(url, maxWidth);
+            Bitmap bmp = fetch(url, maxWidth, alpha ? Bitmap.Config.ARGB_8888 : Bitmap.Config.RGB_565);
             if (bmp != null && transform != null) {
                 try {
                     bmp = transform.apply(bmp);
@@ -92,7 +105,7 @@ final class ImageLoader {
         return tag == null ? url : url + "#" + tag;
     }
 
-    private static Bitmap fetch(String url, int maxWidth) {
+    private static Bitmap fetch(String url, int maxWidth, Bitmap.Config config) {
         HttpURLConnection c = null;
         try {
             c = (HttpURLConnection) new URL(url).openConnection();
@@ -110,7 +123,7 @@ final class ImageLoader {
             bounds.inJustDecodeBounds = true;
             BitmapFactory.decodeByteArray(bytes, 0, bytes.length, bounds);
             BitmapFactory.Options opts = new BitmapFactory.Options();
-            opts.inPreferredConfig = Bitmap.Config.RGB_565;
+            opts.inPreferredConfig = config;
             int sample = 1;
             while (bounds.outWidth / (sample * 2) >= maxWidth) sample *= 2;
             opts.inSampleSize = sample;

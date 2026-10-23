@@ -122,8 +122,21 @@ def short(text, limit=260):
 
 
 def details(kind, tmdb_id):
-    extra = "external_ids,keywords,watch/providers," + ("credits,release_dates" if kind == "movie" else "aggregate_credits,content_ratings")
-    return get(f"/{kind}/{tmdb_id}", append_to_response=extra)
+    extra = "external_ids,keywords,watch/providers,images," + ("credits,release_dates" if kind == "movie" else "aggregate_credits,content_ratings")
+    # images: the title's logo (English) for the Top Shelf, and backdrops without text on them.
+    return get(f"/{kind}/{tmdb_id}", append_to_response=extra, include_image_language="en,null")
+
+
+def best_images(d):
+    """(logo, backdrop): the best English PNG logo (Android can't draw TMDB's SVG ones), and the best
+    textless backdrop, so the logo is the only title on screen; the default backdrop when there is none."""
+    images = d.get("images") or {}
+    logos = [i for i in images.get("logos", []) if i.get("iso_639_1") == "en" and i.get("file_path", "").endswith(".png")]
+    logos.sort(key=lambda i: (i.get("vote_average") or 0, i.get("vote_count") or 0), reverse=True)
+    clean = [i for i in images.get("backdrops", []) if i.get("iso_639_1") is None and (i.get("width") or 0) >= 1280]
+    clean.sort(key=lambda i: (i.get("vote_average") or 0, i.get("vote_count") or 0), reverse=True)
+    return (logos[0]["file_path"] if logos else None,
+            clean[0]["file_path"] if clean else d.get("backdrop_path"))
 
 
 def cert_of(kind, d):
@@ -161,12 +174,13 @@ def entry(kind, d, ratings, seeds_for):
         length = d.get("number_of_seasons") or 0
     kw = (d.get("keywords") or {}).get("keywords" if kind == "movie" else "results", [])
     k = key_of(kind, d["id"])
+    logo, backdrop = best_images(d)
     return {
         "id": k, "type": kind, "title": d.get("title") or d.get("name"), "year": int(date[:4]) if date[:4].isdigit() else 0,
         "length": length, "genres": [g["name"] for g in d.get("genres", [])], "keywords": [x["name"] for x in kw[:10]],
         "maker": maker, "cast": cast, "overview": short(d.get("overview")), "cert": cert_of(kind, d),
         "imdb": imdb, "rating": rating, "votes": votes, "services": services,
-        "backdrop": d.get("backdrop_path"), "poster": d.get("poster_path"),
+        "backdrop": backdrop, "logo": logo, "poster": d.get("poster_path"),
         "because": sorted(seeds_for.get(k, [])),
         "wikidata": (d.get("external_ids") or {}).get("wikidata_id"),
     }
@@ -291,6 +305,7 @@ def main():
           f"{os.path.getsize(OUT) // 1024} KB -> {OUT}")
     links = {s: sum(1 for c in cards if s in c["links"]) for s in ("netflix", "prime", "disney")}
     print(f"direct app links: {links} (of the titles on each service: {by_service})")
+    print(f"logos: {sum(1 for c in cards if c.get('logo'))} of {len(cards)} titles")
 
 
 if __name__ == "__main__":

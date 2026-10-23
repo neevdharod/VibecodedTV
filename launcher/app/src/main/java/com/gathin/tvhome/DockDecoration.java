@@ -1,7 +1,11 @@
 package com.gathin.tvhome;
 
+import android.animation.ValueAnimator;
+import android.graphics.Bitmap;
+import android.graphics.BitmapShader;
 import android.graphics.Canvas;
 import android.graphics.LinearGradient;
+import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.RectF;
@@ -16,6 +20,82 @@ public class DockDecoration extends RecyclerView.ItemDecoration {
     /** false: keep the dock's spacing but draw no band behind it (Apple TV layout). */
     private boolean drawBand = true;
     void setDrawBand(boolean on) { drawBand = on; }
+
+    // ---- frosted glass (Apple TV mode) ----
+    /**
+     * The band is glass over the Top Shelf: the backdrop behind it, softened (setFrost gets a tiny copy
+     * that is stretched back over the screen, which blurs it for free), under a white veil. No live blur:
+     * this TV's GPU can't afford one.
+     */
+    private boolean frosted;
+    private final Paint frostFrom = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+    private final Paint frostTo = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+    private final Paint veil = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private Bitmap frostFromBitmap, frostToBitmap;
+    private float frostMix = 1f;
+    /** How strongly the picture shows through the glass: the backdrop's own opacity on screen. */
+    private float frostStrength = 1f, frostFromStrength = 1f;
+    private ValueAnimator frostAnimator;
+    private final Matrix frostMatrix = new Matrix();
+    private final RectF frostSrc = new RectF(), frostDst = new RectF();
+    private final int[] where = new int[2];
+
+    void setFrosted(boolean on) {
+        frosted = on;
+        drawBand = true;
+        veil.setColor(0x4DFFFFFF);
+        edge.setColor(0x33FFFFFF);
+    }
+
+    /** The picture behind the dock now (null: none); crossfades from the last one like the backdrop does. */
+    void setFrost(Bitmap next, float strength, RecyclerView parent, boolean animate) {
+        if (next == frostToBitmap && strength == frostStrength) return;
+        frostFromStrength = frostStrength;
+        frostStrength = strength;
+        if (frostAnimator != null) frostAnimator.cancel();
+        frostFrom.setShader(frostTo.getShader());
+        frostFromBitmap = frostToBitmap;
+        frostToBitmap = next;
+        frostTo.setShader(next == null ? null : new BitmapShader(next, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP));
+        if (!animate || frostFrom.getShader() == null) {
+            frostMix = 1f;
+            parent.invalidate();
+            return;
+        }
+        frostMix = 0f;
+        frostAnimator = ValueAnimator.ofFloat(0f, 1f).setDuration(600);
+        frostAnimator.addUpdateListener(a -> {
+            frostMix = (float) a.getAnimatedValue();
+            parent.invalidate();
+        });
+        frostAnimator.start();
+    }
+
+    /** Maps a frost bitmap over the whole screen, in the grid's coordinates, so it lines up with the backdrop. */
+    private void placeFrost(Paint paint, Bitmap bitmap, RecyclerView parent) {
+        if (paint.getShader() == null || bitmap == null) return;
+        parent.getLocationInWindow(where);
+        View root = parent.getRootView();
+        frostDst.set(-where[0], -where[1], root.getWidth() - where[0], root.getHeight() - where[1]);
+        frostSrc.set(0, 0, bitmap.getWidth(), bitmap.getHeight());
+        frostMatrix.setRectToRect(frostSrc, frostDst, Matrix.ScaleToFit.FILL);
+        paint.getShader().setLocalMatrix(frostMatrix);
+    }
+
+    private void drawFrosted(Canvas c, RecyclerView parent, float radius) {
+        if (frostFrom.getShader() != null && frostMix < 1f) {
+            placeFrost(frostFrom, frostFromBitmap, parent);
+            frostFrom.setAlpha(Math.round(255 * frostFromStrength));
+            c.drawRoundRect(rect, radius, radius, frostFrom);
+        }
+        if (frostTo.getShader() != null) {
+            placeFrost(frostTo, frostToBitmap, parent);
+            frostTo.setAlpha(Math.round(255 * frostMix * frostStrength));
+            c.drawRoundRect(rect, radius, radius, frostTo);
+        }
+        c.drawRoundRect(rect, radius, radius, veil);
+        c.drawRoundRect(rect, radius, radius, edge);
+    }
 
 
     private final int dockSize;
@@ -111,7 +191,7 @@ public class DockDecoration extends RecyclerView.ItemDecoration {
         float sidePad = 22 * density;
         float side = Math.max(0f, Math.min(sidePad, Math.min(rect.left, parent.getWidth() - rect.right) - density));
         float radius = AppAdapter.cornerRadius(cardWidth, density);
-        if (evenPadding) {
+        if (evenPadding || frosted) {
             // The same padding on all four sides, so the band's corners are concentric with the tiles' everywhere.
             int inner = parent.getWidth() - parent.getPaddingLeft() - parent.getPaddingRight();
             float room = Math.min(rect.top, Math.min(rect.left, parent.getWidth() - rect.right)) - density;
@@ -124,6 +204,10 @@ public class DockDecoration extends RecyclerView.ItemDecoration {
             radius = 26 * density;
         }
         rect.bottom += namesRoom;
+        if (frosted) {
+            drawFrosted(c, parent, radius);
+            return;
+        }
         if (lightGlass && (rect.top != shaderTop || rect.bottom != shaderBottom)) {
             // The pills' glass (pill_bg: white, 18% fading to 8%), a little fainter over this much larger area.
             band.setShader(new LinearGradient(0, rect.top, 0, rect.bottom, 0x24FFFFFF, 0x0DFFFFFF,

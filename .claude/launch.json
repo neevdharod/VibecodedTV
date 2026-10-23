@@ -4,8 +4,25 @@
     {
       "name": "tv-sample",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["tools/serve_sample.py", "8765"],
+      "runtimeArgs": [
+        "tools/serve_sample.py",
+        "8765"
+      ],
       "port": 8765
+    },
+    {
+      "name": "tv-preview",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8770",
+        "--bind",
+        "127.0.0.1",
+        "--directory",
+        "docs"
+      ],
+      "port": 8770
     }
   ]
 }

@@ -155,7 +155,16 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private ImageView heroArt;
     private static final float HERO_ART_ALPHA = 0.5f;
     /** Apple TV mode: the streaming apps' top shelf is Queue's picks for that app, as full backdrops. */
-    private static final float SHELF_ART_ALPHA = 0.95f;
+    private static final float SHELF_ART_ALPHA = 1f;
+    /** Apple TV mode: the band of frosted glass behind the dock (DockDecoration.setFrost). */
+    private DockDecoration dockDecoration;
+    /** Softened copies of backdrops for the frosted dock, by the backdrop they were made from. */
+    private final Map<Bitmap, Bitmap> frosts = new java.util.WeakHashMap<>();
+    private View shelfTitle, shelfChevron;
+    private ImageView shelfLogo;
+    private TextView shelfName;
+    /** The title the shelf's logo is for, so a logo that arrives late for another title is dropped. */
+    private String shelfTitleKey;
     private static final long SHELF_CYCLE_MS = 8000;
     private static final int SHELF_SIZE = 5;
     private final Map<String, List<Taste.Pick>> shelfPicks = new HashMap<>();
@@ -520,7 +529,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         });
         if (dockRow) {
             DockDecoration dock = new DockDecoration(COLUMNS, density, cinematic, cfg.alwaysShowNames, cfg.dockOpacity, cfg.dockGlass, cfg.dockEvenPadding);
-            dock.setDrawBand(!appleTv);   // Apple TV's top row sits straight on the shelf, no band
+            if (appleTv) dock.setFrosted(true);   // Apple TV's dock sits on a band of frosted glass
+            dockDecoration = dock;
             grid.addItemDecoration(dock);
         }
         // Reduced motion: the tiles are simply there, with no entrance (reloadApps skips it there too).
@@ -529,7 +539,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                     AnimationUtils.loadAnimation(this, R.anim.tile_enter), 0.06f));
         }
         adapter = new AppAdapter(this, this, COLUMNS, cfg);
-        adapter.setDockNames(appleTv);
         if (appleTv) {
             // Apple TV: nothing above the shelf. INVISIBLE (not GONE) keeps the top menu's anchor in place.
             findViewById(R.id.topButtons).setVisibility(View.INVISIBLE);
@@ -1644,8 +1653,21 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (appleTv) fitHeroName(label);
         List<Taste.Pick> picks = position == shelfPosition && shelfPkg != null ? shelfPicks.get(shelfPkg) : null;
         if (picks != null) {
+            if (appleTv) {
+                // Apple TV: the title's logo top-left is all the text there is; the name line stays hidden.
+                hero.setVisibility(View.INVISIBLE);
+                fillShelfTitle(picks.get(shelfIndex));
+                return;
+            }
             fillShelfMeta(picks.get(shelfIndex));
             updateDots(picks.size(), shelfIndex);
+            return;
+        }
+        if (appleTv) {
+            // Apps without titles to show (Play Store, Settings...): just their colours behind the dock,
+            // as Apple TV shows a calm picture for apps without a top shelf. No headline.
+            hero.setVisibility(View.INVISIBLE);
+            hideShelfTitle(false);
             return;
         }
         updateHeroMeta(position);
@@ -1692,7 +1714,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                     loaded = new ArrayList<>();
                     events = -1;
                 }
-                if (!loaded.isEmpty()) ImageLoader.prefetch(shelfImage(app, loaded.get(0)), 1280);
+                if (!loaded.isEmpty()) {
+                    ImageLoader.prefetch(shelfImage(app, loaded.get(0)), 1280);
+                    ImageLoader.loadWithAlpha(Catalog.get(app).logo(loaded.get(0).title, "original"), 800, null);
+                }
                 final List<Taste.Pick> done = loaded;
                 final int at = events;
                 handler.post(() -> {
@@ -1767,12 +1792,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (!animations || reducedMotion || heroArt.getAlpha() == 0f) {
                 heroArt.setScaleType(ImageView.ScaleType.CENTER_CROP);
                 heroArt.setImageBitmap(bmp);
+                frostDock(bmp, true);
                 fadeHeroArt(600);
                 return;
             }
             heroArt.animate().alpha(0f).setDuration(200).withEndAction(() -> {
                 heroArt.setScaleType(ImageView.ScaleType.CENTER_CROP);
                 heroArt.setImageBitmap(bmp);
+                frostDock(bmp, true);
                 heroArt.animate().alpha(heroArtAlpha()).setDuration(600).start();
             }).start();
         });
@@ -1784,7 +1811,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (picks == null || picks.size() < 2 || !heroShown || shelfPosition < 0) return;
         shelfIndex = (shelfIndex + 1) % picks.size();
         refreshShelf(shelfPosition);
-        ImageLoader.prefetch(shelfImage(this, picks.get((shelfIndex + 1) % picks.size())), 1280);
+        Taste.Pick next = picks.get((shelfIndex + 1) % picks.size());
+        ImageLoader.prefetch(shelfImage(this, next), 1280);
+        ImageLoader.loadWithAlpha(Catalog.get(this).logo(next.title, "original"), 800, null);
     }
 
     /** Swaps the shelf over to its current pick: the backdrop crossfades, the text dips out and back in. */
@@ -1794,6 +1823,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         hero.animate().cancel();
         if (!animations || reducedMotion) {
             fillHero(position, label);
+            return;
+        }
+        if (appleTv && shelfTitle != null && shelfTitle.getAlpha() > 0f) {
+            shelfTitle.animate().cancel();
+            shelfTitle.animate().alpha(0f).setDuration(200).withEndAction(() -> fillHero(position, label)).start();
             return;
         }
         hero.animate().alpha(0f).setDuration(160).withEndAction(() -> {
@@ -1856,7 +1890,15 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // One stretched bitmap: apply its alpha while drawing instead of through an offscreen buffer.
         heroArt.forceHasOverlappingRendering(false);
         View scrim = findViewById(R.id.heroScrim);
-        scrim.setBackground(scrimDrawable());
+        scrim.setBackground(appleTv ? appleScrimDrawable() : scrimDrawable());
+        if (appleTv) {
+            shelfTitle = findViewById(R.id.shelfTitle);
+            shelfLogo = findViewById(R.id.shelfLogo);
+            shelfName = findViewById(R.id.shelfName);
+            shelfChevron = findViewById(R.id.shelfChevron);
+            shelfTitle.setVisibility(View.VISIBLE);
+            shelfChevron.setVisibility(View.VISIBLE);
+        }
         scrim.setVisibility(View.VISIBLE);
     }
 
@@ -1882,6 +1924,111 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         return scrim;
     }
 
+    /**
+     * Apple TV mode: the picture stays bright. Only a soft shade in the top-left corner, where the logo sits,
+     * and towards the bottom, where the next row of apps peeks in under the dock.
+     */
+    private Drawable appleScrimDrawable() {
+        int w = 480, h = 270;
+        Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bmp);
+        Paint paint = new Paint(Paint.DITHER_FLAG);
+        paint.setShader(new RadialGradient(0, 0, w * 0.6f,
+                new int[]{0x8C000000, 0x33000000, 0x00000000}, new float[]{0f, 0.55f, 1f}, Shader.TileMode.CLAMP));
+        canvas.drawRect(0, 0, w, h, paint);
+        paint.setShader(new LinearGradient(0, h * 0.6f, 0, h,
+                new int[]{0x00000000, 0x8C000000}, null, Shader.TileMode.CLAMP));
+        canvas.drawRect(0, 0, w, h, paint);
+        BitmapDrawable scrim = new BitmapDrawable(getResources(), bmp);
+        scrim.setGravity(Gravity.FILL);
+        return scrim;
+    }
+
+    /**
+     * A copy of a backdrop a few pixels across, halved step by step so every pixel is an average: stretched
+     * back over the screen behind the dock it reads as frosted glass.
+     */
+    private Bitmap frostOf(Bitmap src) {
+        if (src == null) return null;
+        Bitmap hit = frosts.get(src);
+        if (hit != null) return hit;
+        Bitmap b = src;
+        while (b.getWidth() > 64) {
+            Bitmap half = Bitmap.createScaledBitmap(b, Math.max(1, b.getWidth() / 2), Math.max(1, b.getHeight() / 2), true);
+            if (b != src) b.recycle();
+            b = half;
+        }
+        frosts.put(src, b);
+        return b;
+    }
+
+    /** The dock's glass shows what is behind it now. */
+    private void frostDock(Bitmap backdrop, boolean animate) {
+        if (dockDecoration == null || !appleTv) return;
+        // App artwork shows at half strength behind the shelf (HERO_ART_ALPHA), so the glass does too.
+        dockDecoration.setFrost(frostOf(backdrop), shelfPkg != null ? SHELF_ART_ALPHA : HERO_ART_ALPHA, grid,
+                animate && animations && !reducedMotion);
+    }
+
+    /** The shelf's title: the title's logo when TMDB has one (it fades in once loaded), else its name. */
+    private void fillShelfTitle(Taste.Pick p) {
+        if (shelfTitle == null) return;
+        Catalog.Title t = p.title;
+        shelfTitleKey = t.id;
+        String url = Catalog.get(this).logo(t, "original");
+        Bitmap logo = ImageLoader.cachedWithAlpha(url);
+        if (url == null) {
+            showShelfName(t);
+        } else if (logo != null) {
+            showShelfLogo(logo);
+        } else {
+            shelfTitle.animate().cancel();
+            shelfTitle.setAlpha(0f);
+            ImageLoader.loadWithAlpha(url, 800, bmp -> {
+                if (!t.id.equals(shelfTitleKey)) return;
+                if (bmp == null) showShelfName(t);
+                else showShelfLogo(bmp);
+            });
+        }
+    }
+
+    private void showShelfLogo(Bitmap logo) {
+        shelfLogo.setImageBitmap(logo);
+        shelfLogo.setVisibility(View.VISIBLE);
+        shelfName.setVisibility(View.GONE);
+        revealShelfTitle();
+    }
+
+    private void showShelfName(Catalog.Title t) {
+        shelfName.setText(t.title);
+        shelfName.setVisibility(View.VISIBLE);
+        shelfLogo.setVisibility(View.GONE);
+        revealShelfTitle();
+    }
+
+    private void revealShelfTitle() {
+        shelfTitle.animate().cancel();
+        if (!animations || reducedMotion) shelfTitle.setAlpha(1f);
+        else shelfTitle.animate().alpha(1f).setDuration(320).start();
+        if (!animations || reducedMotion) shelfChevron.setAlpha(1f);
+        else shelfChevron.animate().alpha(0.7f).setDuration(320).start();
+    }
+
+    /** Takes the logo and the ^ away (the shelf is showing app artwork, or nothing). */
+    private void hideShelfTitle(boolean animate) {
+        if (shelfTitle == null) return;
+        shelfTitleKey = null;
+        shelfTitle.animate().cancel();
+        shelfChevron.animate().cancel();
+        if (animate && animations && !reducedMotion) {
+            shelfTitle.animate().alpha(0f).setDuration(160).start();
+            shelfChevron.animate().alpha(0f).setDuration(160).start();
+        } else {
+            shelfTitle.setAlpha(0f);
+            shelfChevron.setAlpha(0f);
+        }
+    }
+
     /** Swaps the backdrop to this app's artwork: fade out, swap, fade in, the way the shelf's name changes. */
     private void showHeroArt(int position) {
         String key = adapter.keyAt(position);
@@ -1901,12 +2048,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (!animations || reducedMotion || heroArt.getAlpha() == 0f) {
             heroArt.setScaleType(ImageView.ScaleType.FIT_XY);
             heroArt.setImageBitmap(next);
+            frostDock(next, true);
             fadeHeroArt(600);
             return;
         }
         heroArt.animate().alpha(0f).setDuration(140).withEndAction(() -> {
             heroArt.setScaleType(ImageView.ScaleType.FIT_XY);
             heroArt.setImageBitmap(next);
+            frostDock(next, true);
             heroArt.animate().alpha(HERO_ART_ALPHA).setDuration(420).start();
         }).start();
     }
@@ -2056,6 +2205,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         heroShown = false;
         handler.removeCallbacks(shelfCycle);
         shelfPosition = -1;
+        hideShelfTitle(false);
+        frostDock(null, false);
         if (!ambientGlow) return;
         if (!animations || reducedMotion) {
             setAmbient(color);
@@ -2082,6 +2233,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         heroShown = false;
         handler.removeCallbacks(shelfCycle);
         shelfPosition = -1;
+        hideShelfTitle(true);
+        frostDock(null, true);
         if (animations && !reducedMotion) {
             hero.animate().alpha(0f).setDuration(160).start();
             if (ambientGlow) ambient.animate().alpha(0f).setDuration(300).start();

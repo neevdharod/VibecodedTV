@@ -25,7 +25,7 @@ import java.util.Map;
  */
 final class Catalog {
     static final class Title {
-        String id, type, title, overview, cert, imdb, maker, backdrop, poster;
+        String id, type, title, overview, cert, imdb, maker, backdrop, poster, logo;
         int year, length, votes;
         double rating;
         String[] genres, keywords, cast, services, because;
@@ -58,6 +58,11 @@ final class Catalog {
 
     String backdrop(Title t, String size) {
         return t.backdrop == null ? null : imageBase + size + t.backdrop;
+    }
+
+    /** The title's logo (a transparent PNG), or null when TMDB has no English one. */
+    String logo(Title t, String size) {
+        return t.logo == null ? null : imageBase + size + t.logo;
     }
 
     private static Catalog load(Context ctx) {
@@ -93,6 +98,7 @@ final class Catalog {
             t.maker = o.optString("maker");
             t.backdrop = o.isNull("backdrop") ? null : o.optString("backdrop", null);
             t.poster = o.isNull("poster") ? null : o.optString("poster", null);
+            t.logo = o.isNull("logo") ? null : o.optString("logo", null);
             t.year = o.optInt("year");
             t.length = o.optInt("length");
             t.votes = o.optInt("votes");

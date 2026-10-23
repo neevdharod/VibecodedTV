@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VibecodedTV preview</title>
+<style>
+  :root { --bg: #000; --fg: #fff; --dim: rgba(255,255,255,.55); }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--fg);
+    font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 16px; }
+  .screen { position: relative; width: min(100%, calc((100vh - 120px) * 16 / 9)); aspect-ratio: 16 / 9;
+    border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 1px rgba(255,255,255,.08), 0 20px 60px rgba(0,0,0,.6); }
+  .screen img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0;
+    transition: opacity .35s ease; }
+  .screen img.on { opacity: 1; }
+  .bar { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; justify-content: center; }
+  .cap { font-weight: 600; }
+  .cap small { display: block; font-weight: 400; color: var(--dim); text-align: center; }
+  button { background: rgba(255,255,255,.12); color: var(--fg); border: 0; border-radius: 999px;
+    padding: 8px 16px; font: inherit; cursor: pointer; }
+  button:hover { background: rgba(255,255,255,.22); }
+  .dots { display: flex; gap: 6px; }
+  .dots i { width: 6px; height: 6px; border-radius: 3px; background: rgba(255,255,255,.3); transition: width .2s; }
+  .dots i.on { width: 20px; background: #fff; }
+  .hint { color: var(--dim); font-size: 13px; }
+</style>
+</head>
+<body>
+  <div class="screen" id="screen"></div>
+  <div class="bar">
+    <button id="prev" aria-label="Previous">←</button>
+    <div class="cap" id="cap"></div>
+    <button id="next" aria-label="Next">→</button>
+  </div>
+  <div class="dots" id="dots"></div>
+  <p class="hint">Screenshots at 1920×1080 from the Android TV emulator and the TV. Arrow keys or the buttons to flip.</p>
+<script>
+  const shots = [
+    ["emu-home-1.png", "New Home · Queue highlighted", "Title logo top-left, bright picture, frosted-glass dock (Android TV emulator: Netflix etc. aren't installed there)"],
+    ["emu-home-2.png", "New Home · the next pick", "The Top Shelf moves to the next title every 8 seconds"],
+    ["emu-home-3.png", "New Home · an app without titles", "Plain apps get a calm colour wash, no headline"],
+    ["tv-queue3.png", "Queue (on the TV)", "Up/Down to browse · OK opens it in Prime Video · Right for Love / Not for me / Watchlist"],
+    ["tv-shelf-2.png", "Previous design (on the TV)", "Big text title, rating line and dots, dark fade, no glass"],
+  ];
+  const screen = document.getElementById("screen"), cap = document.getElementById("cap"), dots = document.getElementById("dots");
+  const imgs = shots.map(([file, title]) => {
+    const img = new Image();
+    img.src = "../sample/" + file;
+    img.alt = title;
+    screen.appendChild(img);
+    dots.appendChild(document.createElement("i"));
+    return img;
+  });
+  let i = 0;
+  function show(n) {
+    i = (n + shots.length) % shots.length;
+    imgs.forEach((img, k) => img.classList.toggle("on", k === i));
+    [...dots.children].forEach((d, k) => d.classList.toggle("on", k === i));
+    cap.innerHTML = shots[i][1] + "<small>" + shots[i][2] + "</small>";
+  }
+  document.getElementById("prev").onclick = () => show(i - 1);
+  document.getElementById("next").onclick = () => show(i + 1);
+  addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") show(i + 1);
+    if (e.key === "ArrowLeft" || e.key === "ArrowUp") show(i - 1);
+  });
+  show(0);
+</script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The small ^ at the top of the Top Shelf, as on Apple TV: Up from the dock opens the top menu. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="28dp" android:height="12dp" android:viewportWidth="28" android:viewportHeight="12">
+    <path android:pathData="M3,10 L14,3 L25,10" android:strokeColor="#FFFFFFFF" android:strokeWidth="2.6"
+        android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="#00000000" />
+</vector>

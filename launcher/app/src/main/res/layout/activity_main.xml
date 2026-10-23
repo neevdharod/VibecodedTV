@@ -103,6 +103,54 @@
         android:visibility="gone"
         android:importantForAccessibility="no" />
 
+    <!-- Apple TV mode: the shelf title's logo (or its name when it has none) top-left, and the ^ hint. -->
+    <FrameLayout
+        android:id="@+id/shelfTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_marginStart="68dp"
+        android:layout_marginTop="58dp"
+        android:alpha="0"
+        android:visibility="gone">
+
+        <ImageView
+            android:id="@+id/shelfLogo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:adjustViewBounds="true"
+            android:maxWidth="320dp"
+            android:maxHeight="104dp"
+            android:scaleType="fitStart"
+            android:importantForAccessibility="no" />
+
+        <TextView
+            android:id="@+id/shelfName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:maxWidth="560dp"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:textColor="#FFFFFFFF"
+            android:textSize="46sp"
+            android:fontFamily="@font/outfit_medium"
+            android:letterSpacing="-0.01"
+            android:includeFontPadding="false"
+            android:shadowColor="#80000000"
+            android:shadowRadius="18" />
+    </FrameLayout>
+
+    <ImageView
+        android:id="@+id/shelfChevron"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="18dp"
+        android:alpha="0"
+        android:src="@drawable/ic_shelf_chevron"
+        android:visibility="gone"
+        android:importantForAccessibility="no" />
+
     <!-- Top shelf: the focused dock app's name, positioned above the dock in code. -->
     <LinearLayout
         android:id="@+id/hero"
