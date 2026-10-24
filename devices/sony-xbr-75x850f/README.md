@@ -62,3 +62,15 @@ To remove the new app too: `tools/tv.py pm uninstall com.vibecoded.tv`. The reco
   a moment later. Pressing Home normally is instant.
 - Netflix, Prime Video and Disney+ all accept direct title links (`ACTION_VIEW`, see `Queue.watchOn`);
   none answer `ACTION_SEARCH`. Netflix and the other DRM apps show black in `screencap`.
+- **Apple TV look, tuned (2026-10-23).** `tools/bench_ui.py` times every action (results in `bench.md`).
+  After the logo/frosted-dock redesign, moving along the dock was 17 ms median, 27 ms at the 90th
+  percentile and ~100 ms at the 99th; it is now **6 / 10 / 20 ms**. `framestats` showed the GPU spending
+  ~15 ms a frame on full-screen layers, plus ~95 ms main-thread stalls. The fixes: the shade is painted
+  into each backdrop on ImageLoader's thread, so there is no scrim layer; the dock glass's blurred copy
+  is made on that thread too, with the white veil painted in (one fill of the band, not three); and the
+  shelf stops rotating while a menu is open.
+- The top menu (Up) is now 5 frames (no drop shadow, a 0.12 s fade) instead of ~50. With any popup on
+  screen this TV recomposes the whole screen each frame (~21 ms), so fewer frames is the lever.
+- The remote's Menu key is handled by Sony's system first: it pauses and resumes Home, which then
+  redraws the whole shelf. Hold OK for the app menu instead.
+- Home cold start (release build, compiled ahead of time): ~0.75 s, down from ~4 s with the debug build.

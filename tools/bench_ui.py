@@ -125,10 +125,11 @@ def main():
     rows.append(measure(sh, "Home: down into the app grid and back up",
                         keys("DPAD_DOWN", "DPAD_RIGHT", "DPAD_LEFT", "DPAD_UP")))
     # The Menu key opens the same menu as holding OK (a held key can't be simulated reliably).
-    # Read while the menus are open: Android drops a popup's frame stats once it closes.
-    rows.append(measure(sh, "Home: open the app menu (Move, Replace)", keys("MENU", gap=1.5)))
-    sh(keys("BACK"))
-    rows.append(measure(sh, "Home: open the top menu (Up)", keys("DPAD_UP", gap=1.5)))
+    # Read while the menu is open: Android drops a popup's frame stats once it closes. The app menu (hold OK)
+    # is the same popup, but can't be opened from here: a held key can't be simulated, and the Menu key makes
+    # Sony's own system pause and resume Home, which redraws the whole shelf and would be measured instead.
+    sh("sleep 3")
+    rows.append(measure(sh, "Home: open the top menu (Up); the app menu is the same popup", keys("DPAD_UP", gap=1.5)))
     sh(keys("BACK"))
     rows.append(measure(sh, "Home: sitting idle (10 s)", "sleep 10"))
     # top's columns: PID USER PR NI VIRT RES SHR S %CPU ...

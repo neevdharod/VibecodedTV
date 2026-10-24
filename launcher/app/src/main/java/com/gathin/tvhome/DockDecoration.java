@@ -24,8 +24,9 @@ public class DockDecoration extends RecyclerView.ItemDecoration {
     // ---- frosted glass (Apple TV mode) ----
     /**
      * The band is glass over the Top Shelf: the backdrop behind it, softened (setFrost gets a tiny copy
-     * that is stretched back over the screen, which blurs it for free), under a white veil. No live blur:
-     * this TV's GPU can't afford one.
+     * that is stretched back over the screen, which blurs it for free, with the white veil already painted
+     * into it, MainActivity.frostOf). One fill of the band a frame; no live blur, which this TV's GPU can't
+     * afford. With no picture behind it, the band is the veil alone.
      */
     private boolean frosted;
     private final Paint frostFrom = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
@@ -33,8 +34,8 @@ public class DockDecoration extends RecyclerView.ItemDecoration {
     private final Paint veil = new Paint(Paint.ANTI_ALIAS_FLAG);
     private Bitmap frostFromBitmap, frostToBitmap;
     private float frostMix = 1f;
-    /** How strongly the picture shows through the glass: the backdrop's own opacity on screen. */
-    private float frostStrength = 1f, frostFromStrength = 1f;
+    /** The glass's white veil: frost bitmaps have it painted in; drawn on its own only without one. */
+    static final int VEIL = 0x4DFFFFFF;
     private ValueAnimator frostAnimator;
     private final Matrix frostMatrix = new Matrix();
     private final RectF frostSrc = new RectF(), frostDst = new RectF();
@@ -43,15 +44,13 @@ public class DockDecoration extends RecyclerView.ItemDecoration {
     void setFrosted(boolean on) {
         frosted = on;
         drawBand = true;
-        veil.setColor(0x4DFFFFFF);
+        veil.setColor(VEIL);
         edge.setColor(0x33FFFFFF);
     }
 
     /** The picture behind the dock now (null: none); crossfades from the last one like the backdrop does. */
-    void setFrost(Bitmap next, float strength, RecyclerView parent, boolean animate) {
-        if (next == frostToBitmap && strength == frostStrength) return;
-        frostFromStrength = frostStrength;
-        frostStrength = strength;
+    void setFrost(Bitmap next, RecyclerView parent, boolean animate) {
+        if (next == frostToBitmap) return;
         if (frostAnimator != null) frostAnimator.cancel();
         frostFrom.setShader(frostTo.getShader());
         frostFromBitmap = frostToBitmap;
@@ -85,15 +84,16 @@ public class DockDecoration extends RecyclerView.ItemDecoration {
     private void drawFrosted(Canvas c, RecyclerView parent, float radius) {
         if (frostFrom.getShader() != null && frostMix < 1f) {
             placeFrost(frostFrom, frostFromBitmap, parent);
-            frostFrom.setAlpha(Math.round(255 * frostFromStrength));
+            frostFrom.setAlpha(255);
             c.drawRoundRect(rect, radius, radius, frostFrom);
         }
         if (frostTo.getShader() != null) {
             placeFrost(frostTo, frostToBitmap, parent);
-            frostTo.setAlpha(Math.round(255 * frostMix * frostStrength));
+            frostTo.setAlpha(Math.round(255 * frostMix));
             c.drawRoundRect(rect, radius, radius, frostTo);
+        } else {
+            c.drawRoundRect(rect, radius, radius, veil);
         }
-        c.drawRoundRect(rect, radius, radius, veil);
         c.drawRoundRect(rect, radius, radius, edge);
     }
 

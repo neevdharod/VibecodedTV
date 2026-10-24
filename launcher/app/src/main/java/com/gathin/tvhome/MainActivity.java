@@ -1715,7 +1715,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                     events = -1;
                 }
                 if (!loaded.isEmpty()) {
-                    ImageLoader.prefetch(shelfImage(app, loaded.get(0)), 1280);
+                    loadShelfImage(app, loaded.get(0), null);
                     ImageLoader.loadWithAlpha(Catalog.get(app).logo(loaded.get(0).title, "original"), 800, null);
                 }
                 final List<Taste.Pick> done = loaded;
@@ -1778,7 +1778,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     private void showShelfImage(Taste.Pick p) {
-        String url = shelfImage(this, p);
         String key = "shelf:" + p.title.id;
         heroArt.animate().cancel();
         if (key.equals(heroArtKey) && heroArt.getDrawable() != null) {
@@ -1786,7 +1785,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             return;
         }
         heroArtKey = key;
-        ImageLoader.load(url, 1280, bmp -> {
+        loadShelfImage(this, p, bmp -> {
             if (bmp == null || !key.equals(heroArtKey) || !heroShown) return;
             heroArt.animate().cancel();
             if (!animations || reducedMotion || heroArt.getAlpha() == 0f) {
@@ -1809,10 +1808,16 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private void advanceShelf() {
         List<Taste.Pick> picks = shelfPkg == null ? null : shelfPicks.get(shelfPkg);
         if (picks == null || picks.size() < 2 || !heroShown || shelfPosition < 0) return;
+        if (openPopup != null || cardPrompt != null) {
+            // A menu is open: hold the picture still (with a popup on screen, every frame of the crossfade
+            // makes this TV recompose the whole screen), and try again once it may have closed.
+            handler.postDelayed(shelfCycle, SHELF_CYCLE_MS);
+            return;
+        }
         shelfIndex = (shelfIndex + 1) % picks.size();
         refreshShelf(shelfPosition);
         Taste.Pick next = picks.get((shelfIndex + 1) % picks.size());
-        ImageLoader.prefetch(shelfImage(this, next), 1280);
+        loadShelfImage(this, next, null);
         ImageLoader.loadWithAlpha(Catalog.get(this).logo(next.title, "original"), 800, null);
     }
 
@@ -1890,7 +1895,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // One stretched bitmap: apply its alpha while drawing instead of through an offscreen buffer.
         heroArt.forceHasOverlappingRendering(false);
         View scrim = findViewById(R.id.heroScrim);
-        scrim.setBackground(appleTv ? appleScrimDrawable() : scrimDrawable());
+        // Apple TV mode: the shade is painted into each backdrop (bakeShade), so no scrim layer.
+        if (appleTv) scrim.setVisibility(View.GONE);
+        else scrim.setBackground(scrimDrawable());
         if (appleTv) {
             shelfTitle = findViewById(R.id.shelfTitle);
             shelfLogo = findViewById(R.id.shelfLogo);
@@ -1898,8 +1905,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             shelfChevron = findViewById(R.id.shelfChevron);
             shelfTitle.setVisibility(View.VISIBLE);
             shelfChevron.setVisibility(View.VISIBLE);
+        } else {
+            scrim.setVisibility(View.VISIBLE);
         }
-        scrim.setVisibility(View.VISIBLE);
     }
 
     /**
@@ -1924,14 +1932,33 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         return scrim;
     }
 
+    // ---- Apple TV mode: backdrops prepared in the background ----
+
+    private static final String SHELF_TAG = "appletv";
+    /** The glass for each prepared shelf backdrop (bakeShelf), made from the picture before its shade. */
+    private static final Map<Bitmap, Bitmap> SHELF_FROST = Collections.synchronizedMap(new java.util.WeakHashMap<>());
+
+    /** A shelf backdrop, prepared once on ImageLoader's thread: its glass, then its shade (bakeShade). */
+    private static Bitmap bakeShelf(Bitmap src) {
+        Bitmap frost = frostOf(src, SHELF_ART_ALPHA);
+        Bitmap out = bakeShade(src);
+        SHELF_FROST.put(out, frost);
+        return out;
+    }
+
+    private static void loadShelfImage(Context ctx, Taste.Pick p, ImageLoader.Done done) {
+        ImageLoader.load(shelfImage(ctx, p), 1280, SHELF_TAG, MainActivity::bakeShelf, done);
+    }
+
     /**
-     * Apple TV mode: the picture stays bright. Only a soft shade in the top-left corner, where the logo sits,
-     * and towards the bottom, where the next row of apps peeks in under the dock.
+     * The picture stays bright: only a soft shade in the top-left corner, where the logo sits, and towards
+     * the bottom, where the next row of apps peeks in under the dock. Painted into the picture once, instead
+     * of a full-screen gradient over it in every frame (one fill less a frame on this TV's GPU).
      */
-    private Drawable appleScrimDrawable() {
-        int w = 480, h = 270;
-        Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(bmp);
+    static Bitmap bakeShade(Bitmap src) {
+        Bitmap out = src.isMutable() ? src : src.copy(Bitmap.Config.RGB_565, true);
+        int w = out.getWidth(), h = out.getHeight();
+        Canvas canvas = new Canvas(out);
         Paint paint = new Paint(Paint.DITHER_FLAG);
         paint.setShader(new RadialGradient(0, 0, w * 0.6f,
                 new int[]{0x8C000000, 0x33000000, 0x00000000}, new float[]{0f, 0.55f, 1f}, Shader.TileMode.CLAMP));
@@ -1939,35 +1966,47 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         paint.setShader(new LinearGradient(0, h * 0.6f, 0, h,
                 new int[]{0x00000000, 0x8C000000}, null, Shader.TileMode.CLAMP));
         canvas.drawRect(0, 0, w, h, paint);
-        BitmapDrawable scrim = new BitmapDrawable(getResources(), bmp);
-        scrim.setGravity(Gravity.FILL);
-        return scrim;
+        return out;
     }
 
     /**
-     * A copy of a backdrop a few pixels across, halved step by step so every pixel is an average: stretched
-     * back over the screen behind the dock it reads as frosted glass.
+     * The dock's glass for a picture: a copy a few pixels across, halved step by step so every pixel is an
+     * average (stretched back over the screen it reads as frosted glass), shown at the picture's on-screen
+     * strength over black, with the glass's white veil painted in.
      */
-    private Bitmap frostOf(Bitmap src) {
-        if (src == null) return null;
-        Bitmap hit = frosts.get(src);
-        if (hit != null) return hit;
+    static Bitmap frostOf(Bitmap src, float strength) {
         Bitmap b = src;
         while (b.getWidth() > 64) {
             Bitmap half = Bitmap.createScaledBitmap(b, Math.max(1, b.getWidth() / 2), Math.max(1, b.getHeight() / 2), true);
             if (b != src) b.recycle();
             b = half;
         }
-        frosts.put(src, b);
-        return b;
+        Bitmap out = Bitmap.createBitmap(b.getWidth(), b.getHeight(), Bitmap.Config.RGB_565);
+        Canvas canvas = new Canvas(out);
+        canvas.drawColor(Color.BLACK);
+        Paint paint = new Paint(Paint.FILTER_BITMAP_FLAG);
+        paint.setAlpha(Math.round(255 * strength));
+        canvas.drawBitmap(b, 0, 0, paint);
+        canvas.drawColor(DockDecoration.VEIL);
+        if (b != src) b.recycle();
+        return out;
     }
 
     /** The dock's glass shows what is behind it now. */
     private void frostDock(Bitmap backdrop, boolean animate) {
         if (dockDecoration == null || !appleTv) return;
-        // App artwork shows at half strength behind the shelf (HERO_ART_ALPHA), so the glass does too.
-        dockDecoration.setFrost(frostOf(backdrop), shelfPkg != null ? SHELF_ART_ALPHA : HERO_ART_ALPHA, grid,
-                animate && animations && !reducedMotion);
+        Bitmap frost = null;
+        if (backdrop != null) {
+            frost = SHELF_FROST.get(backdrop);
+            if (frost == null) frost = frosts.get(backdrop);
+            if (frost == null) {
+                // App artwork (HeroArt) is already a few pixels across: cheap enough here. It shows at
+                // half strength behind the shelf (HERO_ART_ALPHA), so the glass does too.
+                frost = frostOf(backdrop, HERO_ART_ALPHA);
+                frosts.put(backdrop, frost);
+            }
+        }
+        dockDecoration.setFrost(frost, grid, animate && animations && !reducedMotion);
     }
 
     /** The shelf's title: the title's logo when TMDB has one (it fades in once loaded), else its name. */
@@ -3192,6 +3231,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         popup.setOutsideTouchable(true);
         popup.setAnimationStyle(0);
         popup.setElevation(0f);
+        // Apple TV mode: no drop shadow under the panel. Every frame of a popup makes this TV recompose the
+        // whole screen under it, and the shadow was most of the popup's own cost.
+        if (appleTv) panel.setElevation(0f);
         popup.setOnDismissListener(() -> {
             if (openPopup == popup) openPopup = null;
         });
@@ -3201,6 +3243,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     /** Drop in: fade and unfold from the top edge, hanging under the anchor pill. */
     private void dropIn(PopupWindow popup, View panel, View anchor, int gravity) {
+        if (appleTv) {
+            // A short fade, nothing else: fewer frames for the TV to recompose the screen under the popup.
+            panel.setAlpha(0f);
+            popup.showAsDropDown(anchor, 0, (int) (10 * density), gravity);
+            panel.animate().alpha(1f).setDuration(reducedMotion ? Motion.REDUCED_MS : 120).start();
+            return;
+        }
         panel.setAlpha(0f);
         panel.setPivotY(0f);
         panel.setScaleY(0.92f);
@@ -3345,6 +3394,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         int gap = (int) (10 * density), height = panel.getMeasuredHeight();
         if (at[1] + card.getHeight() + gap + height <= root.getHeight()) {
             dropIn(popup, panel, card, Gravity.START);
+        } else if (appleTv) {
+            panel.setAlpha(0f);   // the same short fade as dropIn in Apple TV mode
+            popup.showAtLocation(root, Gravity.NO_GRAVITY, at[0], Math.max(0, at[1] - gap - height));
+            panel.animate().alpha(1f).setDuration(reducedMotion ? Motion.REDUCED_MS : 120).start();
         } else {
             panel.setAlpha(0f);
             panel.setPivotY(height);
