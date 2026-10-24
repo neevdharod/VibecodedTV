@@ -4,11 +4,11 @@
     {"id": "nyc-skyline", "name": "New York", "place": "Skyline", "url": "https://cdn.pixabay.com/video/2026/04/21/348020_large.mp4"},
     {"id": "cloudscape", "name": "Above the Clouds", "place": "", "url": "https://cdn.pixabay.com/video/2022/03/16/110910-689949626_large.mp4"},
     {"id": "nyc-central-park", "name": "New York", "place": "Central Park", "url": "https://cdn.pixabay.com/video/2025/04/17/272513_large.mp4"},
-    {"id": "alps-glacier", "name": "The Alps", "place": "Glacier", "url": "https://cdn.pixabay.com/video/2019/04/01/22512-328261507_large.mp4"},
+    {"id": "misty-mountains", "name": "Misty Mountains", "place": "", "url": "https://cdn.pixabay.com/video/2020/03/30/34608-402679728_large.mp4"},
     {"id": "nyc-midtown", "name": "New York", "place": "Midtown", "url": "https://cdn.pixabay.com/video/2020/08/16/47335-451297059_large.mp4"},
     {"id": "skyline-sunset", "name": "City at Sunset", "place": "", "url": "https://cdn.pixabay.com/video/2024/09/13/231168_large.mp4"},
     {"id": "nyc-empire-state", "name": "New York", "place": "Empire State and Manhattan", "url": "https://cdn.pixabay.com/video/2025/04/17/272511_large.mp4"},
     {"id": "volcano-jungle", "name": "Volcano", "place": "Jungle", "url": "https://cdn.pixabay.com/video/2023/11/29/191354-890134722_large.mp4"},
-    {"id": "nyc-brooklyn-bridge", "name": "New York", "place": "Brooklyn Bridge at Night", "url": "https://cdn.pixabay.com/video/2017/01/12/7260-199191197_large.mp4"}
+    {"id": "mountain-sunset", "name": "Mountain Sunset", "place": "", "url": "https://cdn.pixabay.com/video/2026/04/17/347325_large.mp4"}
   ]
 }

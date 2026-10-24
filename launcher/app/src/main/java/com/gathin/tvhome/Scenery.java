@@ -2,7 +2,6 @@ package com.gathin.tvhome;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.media.MediaPlayer;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.StatFs;
@@ -11,6 +10,11 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
 import android.widget.FrameLayout;
+
+import androidx.media3.common.MediaItem;
+import androidx.media3.common.PlaybackException;
+import androidx.media3.common.Player;
+import androidx.media3.exoplayer.ExoPlayer;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -35,6 +39,11 @@ import java.util.concurrent.Executors;
  * the work, as they do for Netflix; the launcher's GPU-drawn frames are untouched. Each clip (assets
  * scenery.json, or a pushed copy in the app's files) is downloaded once into the app's files, one at a time,
  * and plays from there; until the first is in, Home shows its plain background.
+ *
+ * One ExoPlayer plays them all as a looping playlist. Stopping one player and starting another between
+ * clips blanked the whole screen on this Sony (its picture processing drops out of video mode, Home's
+ * apps with it) and stalled Home while the decoder shut down. In one playlist the video never stops, and
+ * with every clip the same format (3840x2160 H.264) the decoder carries straight on into the next.
  */
 final class Scenery implements SurfaceHolder.Callback {
     interface Listener { void sceneChanged(String name, String place); }
@@ -58,7 +67,7 @@ final class Scenery implements SurfaceHolder.Callback {
     private final ExecutorService downloader = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
     private final Listener listener;
-    private MediaPlayer player;
+    private ExoPlayer player;
     private boolean enabled, resumed, surfaceReady, downloading;
     private int index;
     String credit = "";
@@ -71,6 +80,7 @@ final class Scenery implements SurfaceHolder.Callback {
         File base = ctx.getExternalFilesDir(null);
         dir = new File(base != null ? base : ctx.getFilesDir(), "scenery");
         load(ctx);
+        dropRetired();
         surface = new SurfaceView(ctx);
         surface.getHolder().addCallback(this);
         surface.setVisibility(View.GONE);
@@ -101,6 +111,23 @@ final class Scenery implements SurfaceHolder.Callback {
         } catch (Exception e) {
             Log.w(TAG, "no scenery list", e);
         }
+    }
+
+    /** Clips no longer in the list (and half-finished downloads) give their space back. */
+    private void dropRetired() {
+        File[] files = dir.listFiles();
+        if (files == null) return;
+        for (File f : files) {
+            boolean keep = false;
+            for (Scene s : scenes) if (f.getName().equals(s.id + ".mp4")) keep = true;
+            //noinspection ResultOfMethodCallIgnored
+            if (!keep) f.delete();
+        }
+    }
+
+    private Scene sceneFor(String id) {
+        for (Scene s : scenes) if (s.id.equals(id)) return s;
+        return null;
     }
 
     private static String read(InputStream in) throws java.io.IOException {
@@ -157,51 +184,68 @@ final class Scenery implements SurfaceHolder.Callback {
         return new File(dir, s.id + ".mp4");
     }
 
-    /** Plays the current clip if it is on the TV, else the next one that is; fetches what is missing. */
+    private MediaItem itemFor(Scene s) {
+        return new MediaItem.Builder().setMediaId(s.id).setUri(android.net.Uri.fromFile(fileFor(s))).build();
+    }
+
+    /**
+     * Starts the looping playlist of every clip already on the TV, from where it last was; clips that land
+     * later join the end of it (fetchMissing). Nothing on the TV yet: plays once the first download lands.
+     */
     private void play() {
         if (!enabled || !resumed || !surfaceReady || player != null || scenes.isEmpty()) return;
-        for (int tries = 0; tries < scenes.size(); tries++) {
-            Scene s = scenes.get(Math.floorMod(index, scenes.size()));
-            File f = fileFor(s);
-            if (f.isFile()) {
-                start(s, f);
-                fetchMissing();
-                return;
+        List<MediaItem> items = new ArrayList<>();
+        for (int i = 0; i < scenes.size(); i++) {
+            Scene s = scenes.get(Math.floorMod(index + i, scenes.size()));
+            if (fileFor(s).isFile()) items.add(itemFor(s));
+        }
+        if (items.isEmpty()) {
+            fetchMissing();
+            return;
+        }
+        ExoPlayer p = new ExoPlayer.Builder(ctx).build();
+        p.setVideoSurfaceHolder(surface.getHolder());
+        p.setVolume(0f);
+        p.setRepeatMode(Player.REPEAT_MODE_ALL);
+        p.addListener(new Player.Listener() {
+            @Override public void onMediaItemTransition(MediaItem item, int reason) {
+                announce(item);
             }
-            index++;
-        }
-        fetchMissing();   // nothing here yet: play() runs again when the first download lands
+
+            @Override public void onPlayerError(PlaybackException error) {
+                // A clip the TV can't play (a broken download): drop it, fetch it again later, carry on.
+                MediaItem bad = p.getCurrentMediaItem();
+                Log.w(TAG, "can't play " + (bad == null ? "?" : bad.mediaId), error);
+                if (bad != null) {
+                    Scene s = sceneFor(bad.mediaId);
+                    //noinspection ResultOfMethodCallIgnored
+                    if (s != null) fileFor(s).delete();
+                    p.removeMediaItem(p.getCurrentMediaItemIndex());
+                }
+                if (p.getMediaItemCount() > 0) {
+                    p.prepare();
+                    p.play();
+                } else {
+                    main.post(() -> { release(); fetchMissing(); });
+                }
+            }
+        });
+        p.setMediaItems(items);
+        p.prepare();
+        p.play();
+        player = p;
+        announce(items.get(0));
+        fetchMissing();
     }
 
-    private void start(Scene s, File f) {
-        MediaPlayer mp = new MediaPlayer();
-        try {
-            mp.setDataSource(f.getPath());
-            mp.setDisplay(surface.getHolder());
-            mp.setVolume(0f, 0f);
-            mp.setOnPreparedListener(MediaPlayer::start);
-            mp.setOnCompletionListener(done -> next());
-            mp.setOnErrorListener((bad, what, extra) -> {
-                Log.w(TAG, "can't play " + s.id + " (" + what + "/" + extra + "), skipping it");
-                //noinspection ResultOfMethodCallIgnored
-                f.delete();   // a broken download: fetched again later
-                main.post(this::next);
-                return true;
-            });
-            mp.prepareAsync();
-            player = mp;
-            listener.sceneChanged(s.name, s.place);
-        } catch (Exception e) {
-            Log.w(TAG, "can't open " + f, e);
-            mp.release();
-        }
-    }
-
-    private void next() {
-        release();
-        index++;
-        prefs.edit().putInt("index", Math.floorMod(index, Math.max(1, scenes.size()))).apply();
-        play();
+    /** The caption, and where to start next time. */
+    private void announce(MediaItem item) {
+        if (item == null) return;
+        Scene s = sceneFor(item.mediaId);
+        if (s == null) return;
+        index = scenes.indexOf(s);
+        prefs.edit().putInt("index", index).apply();
+        listener.sceneChanged(s.name, s.place);
     }
 
     private void release() {
@@ -232,6 +276,7 @@ final class Scenery implements SurfaceHolder.Callback {
                 downloading = false;
                 if (!ok) return;
                 if (player == null) play();
+                else player.addMediaItem(itemFor(s));   // joins the end of the playlist, no restart
                 fetchMissing();
             });
         });

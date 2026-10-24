@@ -43,6 +43,9 @@ android {
 dependencies {
     implementation 'androidx.recyclerview:recyclerview:1.3.2'
     implementation 'androidx.dynamicanimation:dynamicanimation:1.0.0'
+    // Scenery (Apple TV mode's aerial banner): one player for the whole playlist, so clips follow each other
+    // without the video stopping. 1.4.x is the last line that builds with compileSdk 34.
+    implementation 'androidx.media3:media3-exoplayer:1.4.1'
     // Test only (never in the APK): plain JVM tests for the module card validators, src/test.
     testImplementation 'junit:junit:4.13.2'
 }
