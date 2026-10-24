@@ -81,7 +81,6 @@ com.sony.dtv.smartmediaapp                     # USB media player
 com.sony.dtv.osat.music                        # USB music player
 
 # Second pass: built-in apps not on the keep-list
-com.google.android.youtube.tv                  # YouTube
 com.google.android.youtube.tvmusic             # YouTube Music
 com.google.android.videos                      # Google TV / Play Movies
 com.google.android.play.games                  # Play Games
