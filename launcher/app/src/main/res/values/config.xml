@@ -32,6 +32,10 @@
     <string-array name="hidden_apps">
         <item>com.mediatek.wwtv.tvcenter</item>
         <item>com.mitv.gallery</item>
+        <!-- Sony leftovers, hidden from Home only (still installed): Live TV is in the Inputs menu. -->
+        <item>com.sony.dtv.tvx</item>                  <!-- TV -->
+        <item>com.sony.dtv.timers</item>               <!-- Timer -->
+        <item>com.sony.dtv.smarthomesettings</item>    <!-- TV Control Setup with Alexa -->
     </string-array>
 
     <!-- The TV's Live TV / tuner app, offered at the end of the Inputs menu. Leave empty to omit. -->
