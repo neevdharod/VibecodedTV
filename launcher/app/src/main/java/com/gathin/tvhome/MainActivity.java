@@ -165,6 +165,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private TextView shelfName;
     /** The title the shelf's logo is for, so a logo that arrives late for another title is dropped. */
     private String shelfTitleKey;
+    /** Apple TV mode's other top banner (top menu, Top banner): aerial scenery video instead of titles. */
+    private Scenery scenery;
+    private boolean sceneryMode;
+    private TextView sceneryCaption;
     private static final long SHELF_CYCLE_MS = 8000;
     private static final int SHELF_SIZE = 5;
     private final Map<String, List<Taste.Pick>> shelfPicks = new HashMap<>();
@@ -832,6 +836,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onResume() {
         super.onResume();
+        if (scenery != null) scenery.resume();
         // A festival that started or ended while Home was in the background: rebuild with or without it.
         if (festive != festival.active(LocalDate.now())) {
             recreate();
@@ -1051,6 +1056,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         ambient.animate().cancel();
         heroArt.animate().cancel();
         handler.removeCallbacks(shelfCycle);
+        if (scenery != null) scenery.pause();
         handler.removeCallbacks(minuteTick);
         stopStats();
         if (diya != null) diya.stop();
@@ -1109,6 +1115,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         super.onDestroy();
         unregisterReceiver(packageReceiver);
         wallpaperPlayer.close();
+        if (scenery != null) scenery.close();
         ConnectivityManager cm = getSystemService(ConnectivityManager.class);
         TvInputManager tim = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
         if (tim != null) tim.unregisterCallback(inputCallback);
@@ -1588,6 +1595,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     // ---- top shelf -------------------------------------------------------------------------------
 
     private void showHero(int position, float dockTopInRoot) {
+        if (sceneryMode) return;   // the scenery is the whole banner: no titles, art or glow over it
         String label = heroLabel(position);
         int color = adapter.ambientColorAt(position);
         float y = dockTopInRoot - 14 * density - 26 * density - hero.getHeight();
@@ -1809,7 +1817,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     /** Every few seconds while a streaming app stays focused, the shelf moves on to its next pick. */
     private void advanceShelf() {
         List<Taste.Pick> picks = shelfPkg == null ? null : shelfPicks.get(shelfPkg);
-        if (picks == null || picks.size() < 2 || !heroShown || shelfPosition < 0) return;
+        if (sceneryMode || picks == null || picks.size() < 2 || !heroShown || shelfPosition < 0) return;
         if (openPopup != null || cardPrompt != null) {
             // A menu is open: hold the picture still (with a popup on screen, every frame of the crossfade
             // makes this TV recompose the whole screen), and try again once it may have closed.
@@ -1876,6 +1884,55 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         heroName.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
     }
 
+    /**
+     * Switches the top banner between the titles (Movies) and aerial scenery (Scenery), and remembers it.
+     * Scenery: the video plays behind the window (Scenery), so Home's own black, the title art, the logo and
+     * the colour glow all step aside, and the dock's glass is its plain veil over the moving picture.
+     */
+    private void applyScenery(boolean on) {
+        if (scenery == null) return;
+        sceneryMode = on;
+        getSharedPreferences("home", MODE_PRIVATE).edit().putBoolean("scenery", on).apply();
+        root.setBackgroundColor(on ? Color.TRANSPARENT : Color.BLACK);
+        scenery.setEnabled(on);
+        if (on) {
+            handler.removeCallbacks(shelfCycle);
+            heroShown = false;
+            hero.animate().cancel();
+            hero.setAlpha(0f);
+            heroArt.animate().cancel();
+            heroArt.setAlpha(0f);
+            heroArt.setImageDrawable(null);
+            heroArtKey = null;
+            shelfPkg = null;
+            stopAmbientAnimation();
+            ambient.animate().cancel();
+            ambient.setAlpha(0f);
+            hideShelfTitle(false);
+            frostDock(null, false);
+            shelfChevron.setAlpha(0.7f);
+            return;
+        }
+        sceneryCaption.animate().cancel();
+        sceneryCaption.setAlpha(0f);
+        // Back to titles: put the selected app's banner up again.
+        int pos = Math.max(0, Math.min(lastFocused, adapter.appCount() - 1));
+        RecyclerView.ViewHolder vh = grid.findViewHolderForAdapterPosition(pos);
+        View card = vh == null ? null : vh.itemView.findViewById(R.id.card);
+        if (card != null && card.isFocused()) onTileFocused(pos, card);
+    }
+
+    /** Where the scenery was filmed, top-left: "New York · Central Park". */
+    private void showSceneCaption(String name, String place) {
+        if (sceneryCaption == null || !sceneryMode) return;
+        String text = place == null || place.isEmpty() ? name : name + "  ·  " + place;
+        sceneryCaption.animate().cancel();
+        sceneryCaption.animate().alpha(0f).setDuration(200).withEndAction(() -> {
+            sceneryCaption.setText(text);
+            sceneryCaption.animate().alpha(1f).setDuration(600).start();
+        }).start();
+    }
+
     /** The bitmap heroArt is drawing now, or null. */
     private Bitmap shownHeroBitmap() {
         Drawable d = heroArt.getDrawable();
@@ -1913,6 +1970,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             shelfChevron = findViewById(R.id.shelfChevron);
             shelfTitle.setVisibility(View.VISIBLE);
             shelfChevron.setVisibility(View.VISIBLE);
+            sceneryCaption = findViewById(R.id.sceneryCaption);
+            scenery = new Scenery(this, root, this::showSceneCaption);
+            if (getSharedPreferences("home", MODE_PRIVATE).getBoolean("scenery", false)) applyScenery(true);
         } else {
             scrim.setVisibility(View.VISIBLE);
         }
@@ -2250,6 +2310,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      * name above the dock does not show (every grid tile has its name underneath).
      */
     private void showGlowOnly(int position) {
+        if (sceneryMode) return;
         int color = adapter.ambientColorAt(position);
         stopAmbientAnimation();
         hero.animate().cancel();
@@ -3324,6 +3385,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (!TextUtils.isEmpty(network)) {
             TextView status = rows.getChildAt(rows.getChildCount() - 1).findViewById(R.id.status);
             status.setText(network);
+            status.setVisibility(View.VISIBLE);
+        }
+        if (scenery != null) {
+            // Top banner: the titles on each streaming app (Movies), or aerial scenery video (Scenery).
+            addInputRow(rows, popup, R.drawable.ic_scenery, getString(R.string.top_banner), -1,
+                    () -> root.post(() -> applyScenery(!sceneryMode)));
+            TextView status = rows.getChildAt(rows.getChildCount() - 1).findViewById(R.id.status);
+            status.setText(sceneryMode ? R.string.top_banner_scenery : R.string.top_banner_movies);
             status.setVisibility(View.VISIBLE);
         }
         if (launcherSettingsButton) {
