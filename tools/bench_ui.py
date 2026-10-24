@@ -28,8 +28,8 @@ def backend(args):
     if "--adb" in args:
         serial = args[args.index("--adb") + 1]
         adb = os.path.expanduser("~/Library/Android/sdk/platform-tools/adb")
-        return lambda cmd: subprocess.run([adb, "-s", serial, "shell", cmd], capture_output=True,
-                                          text=True, timeout=300).stdout
+        return lambda cmd, timeout=300: subprocess.run([adb, "-s", serial, "shell", cmd], capture_output=True,
+                                                       text=True, timeout=timeout).stdout
     if not os.environ.get("TV_HOST"):
         try:
             os.environ["TV_HOST"] = open(os.path.join(TOOLS, ".tv_host")).read().strip()
@@ -37,8 +37,22 @@ def backend(args):
             sys.exit("set TV_HOST, or put the TV IP address in tools/.tv_host")
     sys.path.insert(0, TOOLS)
     import tv
-    dev = tv.connect()
-    return lambda cmd: dev.shell(cmd, read_timeout_s=300)
+    state = {"dev": tv.connect()}
+
+    def shell(cmd, timeout=300):
+        # Now and then the TV's ADB stops answering mid-run (seen while a streaming app starts):
+        # reconnect and carry on with that one reading missing, rather than lose the whole run.
+        try:
+            return state["dev"].shell(cmd, transport_timeout_s=timeout, read_timeout_s=timeout)
+        except Exception as e:
+            print(f"  (the TV stopped answering during: {cmd[:60]}... {type(e).__name__}; reconnecting)", file=sys.stderr)
+            try:
+                state["dev"].close()
+            except Exception:
+                pass
+            state["dev"] = tv.connect()
+            return ""
+    return shell
 
 
 def keys(*steps, gap=1.2):
@@ -75,8 +89,9 @@ def measure(sh, name, command):
 
 
 def start_time(sh, component):
-    out = sh(f"am start -W -n {component}")
-    m = re.search(r"TotalTime:\s*(\d+)", out)
+    out = sh(f"timeout 20 am start -W -n {component}", timeout=45)   # an app that never reports can't hang the run
+    # Android 9 leaves out TotalTime when the app's process is already running; WaitTime is then the time.
+    m = re.search(r"TotalTime:\s*(\d+)", out) or re.search(r"WaitTime:\s*(\d+)", out)
     return int(m.group(1)) if m else None
 
 
@@ -94,10 +109,13 @@ def main():
     # Home from cold: what a reboot or an update costs. `am start -W` reports 0 for a launcher, so time it
     # on the TV: from the start command until the launcher has drawn its first frame.
     sh(f"input keyevent KEYCODE_WAKEUP; am force-stop {PKG}")
-    cold = sh(f"s=$(date +%s%N); am start -n {PKG}/.MainActivity >/dev/null; i=0; "
+    # /proc/uptime in hundredths of a second: this TV's `date` has no %N.
+    up = "$(cut -d' ' -f1 /proc/uptime | tr -d .)"
+    cold = sh(f"s={up}; am start -n {PKG}/.MainActivity >/dev/null; i=0; "
               f"while ! dumpsys gfxinfo {PKG} | grep -q 'Total frames rendered: [1-9]' && [ $i -lt 300 ]; do i=$((i+1)); done; "
-              "e=$(date +%s%N); echo $(( (e - s) / 1000000 ))").strip()
-    starts.append(("Home, cold start (after a reboot or update)", int(cold) if cold.isdigit() else None))
+              f"e={up}; echo cold=$(( (e - s) * 10 ))")
+    m = re.search(r"cold=(\d+)", cold)   # dumpsys may add a "Broken pipe" line from the grep closing early
+    starts.append(("Home, cold start (after a reboot or update)", int(m.group(1)) if m else None))
     sh("sleep 8; " + keys(*["DPAD_LEFT"] * 5, gap=0.4))   # focus on the first dock app (Queue)
     sh("sleep 4")
 
@@ -117,6 +135,7 @@ def main():
     cpu = sh(f"top -b -n 1 | grep {PKG} | grep -v grep | head -n 1").split()
     idle_cpu = cpu[8] if len(cpu) > 8 else None
 
+    sh(f"am start -n {PKG}/.QueueActivity >/dev/null; sleep 2; input keyevent KEYCODE_BACK; sleep 2")   # a fresh Queue
     starts.append(("Open Queue", start_time(sh, f"{PKG}/.QueueActivity")))
     sh("sleep 5")
     rows.append(measure(sh, "Queue: next title (8 times)", keys(*["DPAD_DOWN"] * 8, gap=1.5)))

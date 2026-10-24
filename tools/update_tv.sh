@@ -15,6 +15,11 @@ TV_HOST="${TV_HOST:-$(cat tools/.tv_host 2>/dev/null || true)}"
 : "${TV_HOST:?set TV_HOST, or put the TV IP address in tools/.tv_host}"
 export TV_HOST
 PY=tools/venv/bin/python
+# The JDK 17 this project's setup installed, unless one is set already: the install script's own search
+# (java_home, Homebrew) doesn't know this location and stops without a word when it finds no Java.
+if [ -z "${JAVA_HOME:-}" ] && [ -x "$HOME/.vibecodedtv/jdk17/Contents/Home/bin/java" ]; then
+  export JAVA_HOME="$HOME/.vibecodedtv/jdk17/Contents/Home"
+fi
 
 CATALOG=0
 SCALE=0.5
