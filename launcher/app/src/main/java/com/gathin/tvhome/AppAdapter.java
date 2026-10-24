@@ -15,6 +15,7 @@ import android.graphics.Outline;
 import android.graphics.PixelFormat;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.provider.Settings;
 import android.util.DisplayMetrics;
@@ -50,6 +51,24 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     /** Apple TV layout: the focused dock tile shows its name too (MainActivity.appleTv). */
     private boolean dockNames;
     void setDockNames(boolean on) { dockNames = on; }
+
+    /**
+     * Apple TV layout: the selected app is unmistakable from the sofa. It grows more (BOLD_SCALE), rises
+     * further on a deeper shadow, and gets a white outline. A stroke and one shadow: cheap on this TV's GPU.
+     */
+    private boolean boldFocus;
+    void setBoldFocus(boolean on) { boldFocus = on; }
+    static final float BOLD_SCALE = 1.18f;
+    private static final float BOLD_LIFT_DP = 8f, BOLD_Z_DP = 10f, RING_DP = 3f;
+
+    /** The white outline round a selected tile, its corners following the tile's. */
+    static Drawable focusRing(View card, float density) {
+        GradientDrawable ring = new GradientDrawable();
+        ring.setColor(Color.TRANSPARENT);
+        ring.setStroke(Math.round(RING_DP * density), Color.WHITE);
+        ring.setCornerRadius(cornerRadius(card.getWidth(), density));
+        return ring;
+    }
 
 
     interface TileListener {
@@ -407,7 +426,9 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             v.setPadding(v.getPaddingLeft(), pad, v.getPaddingRight(), pad);
         }
         name.setLayoutParams(nameLp);
-        return new Holder(v, listener, animations, advancedEffects, reducedMotion, restNameAlpha, focusOvershoot);
+        Holder holder = new Holder(v, listener, animations, advancedEffects, reducedMotion, restNameAlpha, focusOvershoot);
+        holder.boldFocus = boldFocus;
+        return holder;
     }
 
     @Override
@@ -435,8 +456,10 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         h.name.setAlpha(focused ? 1f : restNameAlpha);
         h.card.setScaleX(focused && animations ? focusScale() : 1f);
         h.card.setScaleY(focused && animations ? focusScale() : 1f);
-        h.card.setTranslationY(focused && advancedEffects ? -4f * ctx.getResources().getDisplayMetrics().density : 0f);
-        h.card.setTranslationZ(focused && advancedEffects ? 8f * ctx.getResources().getDisplayMetrics().density : 0f);
+        float dens = ctx.getResources().getDisplayMetrics().density;
+        h.card.setTranslationY(focused && (advancedEffects || boldFocus) ? -(boldFocus ? BOLD_LIFT_DP : 4f) * dens : 0f);
+        h.card.setTranslationZ(focused && (advancedEffects || boldFocus) ? (boldFocus ? BOLD_Z_DP : 8f) * dens : 0f);
+        if (boldFocus) h.card.setForeground(focused && h.card.getWidth() > 0 ? focusRing(h.card, dens) : null);
         h.banner.setScaleX(focused && advancedEffects ? 1.035f : 1f);
         h.banner.setScaleY(focused && advancedEffects ? 1.035f : 1f);
         // A fully opaque banner covers the whole card (centerCrop), so the card's own fill under it is drawn for
@@ -617,7 +640,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     }
 
     float focusScale() {
-        return !animations ? 1f : advancedEffects ? 1.12f : 1.10f;
+        return !animations ? 1f : boldFocus ? BOLD_SCALE : advancedEffects ? 1.12f : 1.10f;
     }
 
     /** A vivid colour sampled from the app's banner (or icon), cached per entry; a card's accent when it set one. */
@@ -688,6 +711,9 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         final TextView name;
         final boolean animations;
         final boolean advancedEffects;
+        /** AppAdapter.setBoldFocus: bigger lift, deeper shadow and a white outline when selected. */
+        boolean boldFocus;
+        private Drawable ring;
         final boolean reducedMotion;
         /** Alpha of the name while the tile is not focused (always_show_names). */
         final float restNameAlpha;
@@ -730,8 +756,14 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 view.animate().cancel();
                 banner.animate().cancel();
                 name.animate().cancel();
-                float scale = !animations ? 1f : advancedEffects ? 1.12f : 1.10f;
+                float scale = !animations ? 1f : boldFocus ? BOLD_SCALE : advancedEffects ? 1.12f : 1.10f;
                 float s = focused ? scale : 1f;
+                boolean lifts = advancedEffects || boldFocus;
+                float lift = (boldFocus ? BOLD_LIFT_DP : 4f) * density, z = (boldFocus ? BOLD_Z_DP : 8f) * density;
+                if (boldFocus) {
+                    if (ring == null) ring = focusRing(view, density);
+                    view.setForeground(focused ? ring : null);
+                }
                 if (!animations) {
                     view.setScaleX(1f);
                     view.setScaleY(1f);
@@ -745,8 +777,8 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                     // A short zoom with no hardware layer: building a layer for so short an animation costs more
                     // frames than it saves. The name just appears instead of fading.
                     view.animate().scaleX(s).scaleY(s)
-                            .translationY(focused && advancedEffects ? -4f * density : 0f)
-                            .translationZ(focused && advancedEffects ? 8f * density : 0f)
+                            .translationY(focused && lifts ? -lift : 0f)
+                            .translationZ(focused && lifts ? z : 0f)
                             .setDuration(focused ? Motion.REDUCED_MS : 60)
                             .setInterpolator(new DecelerateInterpolator())
                             .start();
@@ -757,8 +789,8 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                     if (focused) name.setTranslationY(density * 4f);
                 } else {
                     view.animate().scaleX(s).scaleY(s)
-                            .translationY(focused && advancedEffects ? -4f * density : 0f)
-                            .translationZ(focused && advancedEffects ? 8f * density : 0f)
+                            .translationY(focused && lifts ? -lift : 0f)
+                            .translationZ(focused && lifts ? z : 0f)
                             .setDuration(advancedEffects ? (focused ? 220 : 170) : (focused ? 260 : 180))
                             .setInterpolator(focused && !overshoot ? new DecelerateInterpolator(1.5f)
                                     : new OvershootInterpolator(focused ? (advancedEffects ? 0.7f : 1.6f) : 0f))

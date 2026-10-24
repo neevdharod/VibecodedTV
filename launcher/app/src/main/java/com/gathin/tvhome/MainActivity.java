@@ -539,6 +539,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                     AnimationUtils.loadAnimation(this, R.anim.tile_enter), 0.06f));
         }
         adapter = new AppAdapter(this, this, COLUMNS, cfg);
+        adapter.setBoldFocus(appleTv);   // an obvious selection: bigger lift, deeper shadow, white outline
         if (appleTv) {
             // Apple TV: nothing above the shelf. INVISIBLE (not GONE) keeps the top menu's anchor in place.
             findViewById(R.id.topButtons).setVisibility(View.INVISIBLE);
@@ -1780,7 +1781,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private void showShelfImage(Taste.Pick p) {
         String key = "shelf:" + p.title.id;
         heroArt.animate().cancel();
-        if (key.equals(heroArtKey) && heroArt.getDrawable() != null) {
+        Bitmap ready = ImageLoader.cached(shelfImage(this, p), SHELF_TAG);
+        if (key.equals(heroArtKey) && ready != null && shownHeroBitmap() == ready) {
             fadeHeroArt(420);
             return;
         }
@@ -1872,6 +1874,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             sp -= 4f;
         }
         heroName.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
+    }
+
+    /** The bitmap heroArt is drawing now, or null. */
+    private Bitmap shownHeroBitmap() {
+        Drawable d = heroArt.getDrawable();
+        return d instanceof BitmapDrawable ? ((BitmapDrawable) d).getBitmap() : null;
     }
 
     private float heroArtAlpha() {
@@ -2074,6 +2082,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (key == null) return;
         heroArt.animate().cancel();
         if (key.equals(heroArtKey)) {
+            // A fade-out cancelled before its swap (another focus update) leaves the previous picture up:
+            // put this app's art in if it isn't the one showing.
+            Bitmap want = heroArtCache.get(key);
+            if (shownHeroBitmap() != want) {
+                heroArt.setScaleType(ImageView.ScaleType.FIT_XY);
+                heroArt.setImageBitmap(want);
+                frostDock(want, false);
+            }
             fadeHeroArt(420);
             return;
         }
