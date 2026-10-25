@@ -28,8 +28,13 @@ API = "https://pixabay.com/api/videos/"
 
 # (caption, search, how many to keep). New York gets the most room; the rest keeps it varied.
 THEMES = [
-    ("New York", "new york aerial", 30),
-    ("New York", "manhattan drone", 15),
+    ("New York", "new york aerial", 15),
+    ("New York", "manhattan drone", 10),
+    ("New York", "new york city skyline", 10),
+    ("New York", "brooklyn bridge", 5),
+    ("New York", "times square", 4),
+    ("New York", "central park", 4),
+    ("New York", "statue of liberty", 3),
     ("Cities at Night", "city night aerial", 15),
     ("City Skylines", "skyline drone", 15),
     ("Mountains", "mountains aerial", 15),
@@ -42,10 +47,27 @@ THEMES = [
     ("Lakes", "lake drone", 8),
 ]
 MIN_SECONDS, MAX_SECONDS = 12, 90
-# Tags that say more about where it is than "aerial" does; used for the caption's second half.
-GENERIC = {"aerial", "drone", "aerial view", "aerial shot", "landscape", "nature", "city", "cityscape", "urban",
-           "4k", "background", "view", "sky", "travel", "scenery", "outdoors", "panorama", "skyline", "drone shot",
-           "footage", "video", "buildings", "building", "architecture", "dji", "flight", "flying", "above"}
+# A clip counts for a theme only when its own tags say so: Pixabay's search alone returns beaches for
+# "new york aerial".
+NEEDS = {
+    "New York": ["new york", "manhattan", "nyc", "brooklyn", "empire state", "statue of liberty", "times square",
+                 "central park", "hudson"],
+    "Cities at Night": ["night"],
+    "City Skylines": ["skyline", "skyscraper", "downtown", "city"],
+    "Mountains": ["mountain"],
+    "Above the Clouds": ["cloud"],
+    "Ocean": ["ocean", "sea"],
+    "Coastlines": ["coast", "beach", "cliff", "shore"],
+    "Forests": ["forest", "trees", "woods"],
+    "Deserts": ["desert", "dune"],
+    "Snow": ["snow", "winter", "glacier"],
+    "Lakes": ["lake"],
+}
+# The caption's second half, New York only: its landmarks, by the tag that names them.
+LANDMARKS = [("brooklyn bridge", "Brooklyn Bridge"), ("statue of liberty", "Statue of Liberty"),
+             ("times square", "Times Square"), ("central park", "Central Park"), ("empire state", "Empire State"),
+             ("one world trade", "One World Trade"), ("hudson", "Hudson River"), ("brooklyn", "Brooklyn"),
+             ("midtown", "Midtown"), ("manhattan", "Manhattan")]   # "downtown" is on half of them: too vague
 
 
 def key():
@@ -72,9 +94,11 @@ def search(api_key, q):
 
 
 def place(tags, caption):
-    for t in (x.strip() for x in tags.split(",")):
-        if t and t.lower() not in GENERIC and t.lower() not in caption.lower():
-            return t.title()
+    if caption != "New York":
+        return ""   # like Apple's aerials: "Mountains", not a guess from a stock site's tags
+    for tag, name in LANDMARKS:
+        if tag in tags:
+            return name
     return ""
 
 
@@ -90,6 +114,8 @@ def main():
             tags = (h.get("tags") or "").lower()
             if h["id"] in seen or "ai generated" in tags or "ai-generated" in tags or "generated" in tags:
                 continue
+            if not any(word in tags for word in NEEDS[caption]):
+                continue
             if not (MIN_SECONDS <= (h.get("duration") or 0) <= MAX_SECONDS):
                 continue
             # Pixabay's renditions: large is usually 4K, medium usually 1920x1080. Keep true 1080p only.
@@ -98,7 +124,7 @@ def main():
             if not r:
                 continue
             seen.add(h["id"])
-            scenes.append({"id": f"px{h['id']}", "name": caption, "place": place(h.get("tags", ""), caption),
+            scenes.append({"id": f"px{h['id']}", "name": caption, "place": place(tags, caption),
                            "url": r["url"], "mb": round((r.get("size") or 0) / 1048576, 1)})
             kept += 1
         print(f"{caption:18} {q:22} {kept:3} clips")
