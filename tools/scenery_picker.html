@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scenery Picker</title>
+<style>
+  :root {
+    --bg: #0b0b0d; --panel: #16161a; --line: rgba(255,255,255,.08); --fg: #f4f4f6; --dim: rgba(244,244,246,.55);
+    --accent: #0a84ff; --pick: #30d158; --chip: rgba(255,255,255,.08); --chip-on: #f4f4f6;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg);
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif; }
+  header { position: sticky; top: 0; z-index: 5; background: rgba(11,11,13,.86); backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px); border-bottom: 1px solid var(--line); padding: 14px 20px 10px; }
+  .top { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  h1 { font-size: 20px; margin: 0; font-weight: 650; letter-spacing: -.01em; }
+  .count { color: var(--dim); font-variant-numeric: tabular-nums; }
+  .count b { color: var(--fg); font-weight: 600; }
+  .meter { flex: 1; min-width: 120px; max-width: 260px; height: 6px; border-radius: 3px; background: var(--chip); overflow: hidden; }
+  .meter i { display: block; height: 100%; width: 0; background: var(--pick); transition: width .25s; }
+  .spacer { flex: 1; }
+  button { font: inherit; border: 0; border-radius: 999px; padding: 8px 16px; cursor: pointer; color: var(--fg); background: var(--chip); }
+  button:hover { background: rgba(255,255,255,.14); }
+  button.primary { background: var(--accent); font-weight: 600; }
+  button.primary:hover { filter: brightness(1.1); }
+  .status { color: var(--dim); min-height: 1.4em; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .chip { padding: 6px 12px; font-size: 13px; }
+  .chip span { color: var(--dim); margin-left: 4px; font-variant-numeric: tabular-nums; }
+  .chip.on { background: var(--chip-on); color: #000; }
+  .chip.on span { color: rgba(0,0,0,.5); }
+  main { padding: 18px 20px 60px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+  .card { position: relative; border-radius: 12px; overflow: hidden; background: var(--panel); cursor: pointer;
+    aspect-ratio: 16 / 9; outline: 2px solid transparent; outline-offset: 2px; transition: outline-color .15s, transform .15s;
+    content-visibility: auto; contain-intrinsic-size: 260px 146px; }
+  .card:hover { transform: scale(1.02); }
+  .card.picked { outline-color: var(--pick); }
+  .card img, .card video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .card .shade { position: absolute; inset: auto 0 0 0; padding: 22px 10px 8px;
+    background: linear-gradient(transparent, rgba(0,0,0,.75)); display: flex; align-items: end; gap: 6px; }
+  .card .cap { font-weight: 600; font-size: 13px; text-shadow: 0 1px 6px rgba(0,0,0,.6); }
+  .card .meta { margin-left: auto; color: rgba(255,255,255,.75); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .card .tick { position: absolute; top: 8px; left: 8px; width: 26px; height: 26px; border-radius: 50%;
+    background: rgba(0,0,0,.45); border: 2px solid rgba(255,255,255,.85); display: grid; place-items: center;
+    font-size: 15px; font-weight: 700; color: transparent; }
+  .card.picked .tick { background: var(--pick); border-color: var(--pick); color: #fff; }
+  .card .big { position: absolute; top: 8px; right: 8px; padding: 4px 9px; font-size: 12px; border-radius: 999px;
+    background: rgba(0,0,0,.5); opacity: 0; transition: opacity .15s; }
+  .card:hover .big { opacity: 1; }
+  .empty { color: var(--dim); padding: 40px 0; text-align: center; }
+  dialog { border: 0; padding: 0; background: #000; border-radius: 14px; width: min(1100px, 94vw); color: var(--fg); }
+  dialog::backdrop { background: rgba(0,0,0,.8); }
+  dialog video { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; }
+  dialog .bar { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: var(--panel); }
+  dialog .bar .t { font-weight: 600; }
+  dialog .bar a { color: var(--dim); font-size: 13px; }
+  @media (max-width: 560px) { .grid { grid-template-columns: 1fr 1fr; gap: 8px; } header { padding: 12px 12px 8px; } main { padding: 12px; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <h1>Scenery</h1>
+    <div class="count"><b id="n">0</b> picked of <span id="target">150</span> · <span id="gb">0</span> GB in all</div>
+    <div class="meter"><i id="bar"></i></div>
+    <div class="spacer"></div>
+    <span class="status" id="status"></span>
+    <button id="clear">Clear picks</button>
+    <button class="primary" id="save">Save for the TV</button>
+  </div>
+  <div class="chips" id="chips"></div>
+</header>
+<main>
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" hidden>Nothing here.</div>
+</main>
+<dialog id="dlg">
+  <video id="dlgVideo" controls muted autoplay loop playsinline></video>
+  <div class="bar">
+    <span class="t" id="dlgTitle"></span>
+    <a id="dlgPage" target="_blank" rel="noopener">On Pixabay</a>
+    <span class="spacer" style="flex:1"></span>
+    <button id="dlgPick">Pick</button>
+    <button id="dlgClose">Close</button>
+  </div>
+</dialog>
+<script>
+  const TARGET = 150;
+  let clips = [], picked = new Set(), filter = "All";
+  const $ = (id) => document.getElementById(id);
+  const label = (c) => c.place ? `${c.name} · ${c.place}` : c.name;
+
+  function updateCount() {
+    $("n").textContent = picked.size;
+    $("target").textContent = TARGET;
+    const mb = clips.filter((c) => picked.has(c.id)).reduce((a, c) => a + (c.mb || 0), 0);
+    $("gb").textContent = (mb / 1024).toFixed(1);
+    $("bar").style.width = Math.min(100, (picked.size / TARGET) * 100) + "%";
+    document.querySelectorAll(".chip").forEach((el) => {
+      const t = el.dataset.theme;
+      if (t === "Picked") el.querySelector("span").textContent = picked.size;
+    });
+  }
+
+  function chips() {
+    const themes = ["All", "Picked", ...new Set(clips.map((c) => c.name))];
+    $("chips").innerHTML = "";
+    for (const t of themes) {
+      const n = t === "All" ? clips.length : t === "Picked" ? picked.size : clips.filter((c) => c.name === t).length;
+      const b = document.createElement("button");
+      b.className = "chip" + (t === filter ? " on" : "");
+      b.dataset.theme = t;
+      b.innerHTML = `${t}<span>${n}</span>`;
+      b.onclick = () => { filter = t; chips(); render(); };
+      $("chips").appendChild(b);
+    }
+  }
+
+  function render() {
+    const list = clips.filter((c) => filter === "All" || (filter === "Picked" ? picked.has(c.id) : c.name === filter));
+    const grid = $("grid");
+    grid.innerHTML = "";
+    $("empty").hidden = list.length > 0;
+    const frag = document.createDocumentFragment();
+    for (const c of list) {
+      const card = document.createElement("div");
+      card.className = "card" + (picked.has(c.id) ? " picked" : "");
+      card.innerHTML = `<img loading="lazy" decoding="async" alt="">
+        <div class="tick">✓</div><button class="big" title="Watch full size">Watch</button>
+        <div class="shade"><span class="cap"></span><span class="meta"></span></div>`;
+      card.querySelector("img").src = c.thumb;
+      card.querySelector(".cap").textContent = label(c);
+      card.querySelector(".meta").textContent = `${c.seconds}s · ${c.mb} MB`;
+      card.onclick = (e) => {
+        if (e.target.classList.contains("big")) return openClip(c);
+        toggle(c.id);
+        card.classList.toggle("picked", picked.has(c.id));
+      };
+      // Plays only while hovered: a video element per hover, gone when the pointer leaves.
+      card.onmouseenter = () => {
+        const v = document.createElement("video");
+        v.muted = true; v.loop = true; v.playsInline = true; v.src = c.preview;
+        card.insertBefore(v, card.querySelector(".tick"));
+        v.play().catch(() => {});
+      };
+      card.onmouseleave = () => card.querySelectorAll("video").forEach((v) => { v.pause(); v.remove(); });
+      frag.appendChild(card);
+    }
+    grid.appendChild(frag);
+  }
+
+  function toggle(id) {
+    picked.has(id) ? picked.delete(id) : picked.add(id);
+    updateCount();
+    $("status").textContent = "Not saved yet";
+  }
+
+  function openClip(c) {
+    $("dlgVideo").src = c.url;
+    $("dlgTitle").textContent = `${label(c)} — ${c.seconds}s, ${c.mb} MB`;
+    $("dlgPage").href = c.page;
+    const b = $("dlgPick");
+    const sync = () => (b.textContent = picked.has(c.id) ? "Unpick" : "Pick");
+    sync();
+    b.onclick = () => { toggle(c.id); sync(); render(); };
+    $("dlg").showModal();
+  }
+  $("dlgClose").onclick = () => $("dlg").close();
+  $("dlg").addEventListener("close", () => { $("dlgVideo").pause(); $("dlgVideo").removeAttribute("src"); });
+
+  $("clear").onclick = () => {
+    if (!confirm("Unpick everything?")) return;
+    picked.clear(); updateCount(); chips(); render(); $("status").textContent = "Not saved yet";
+  };
+
+  $("save").onclick = async () => {
+    $("status").textContent = "Saving…";
+    // Keep the pool's order (best first) for whatever is picked; the server spreads New York through it.
+    const ids = clips.filter((c) => picked.has(c.id)).map((c) => c.id);
+    try {
+      const r = await fetch("/api/save", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }) });
+      const j = await r.json();
+      $("status").textContent = r.ok ? `Saved ${j.saved} clips (${j.gb} GB in all). Ready for the TV.` : (j.error || "Couldn't save");
+    } catch (e) {
+      $("status").textContent = "Couldn't reach the picker: is tools/scenery_picker.py still running?";
+    }
+  };
+
+  window.addEventListener("beforeunload", (e) => {
+    if ($("status").textContent === "Not saved yet") { e.preventDefault(); e.returnValue = ""; }
+  });
+
+  fetch("/api/candidates").then((r) => r.json()).then((d) => {
+    clips = d.clips;
+    picked = new Set(d.picked.filter((id) => clips.some((c) => c.id === id)));
+    updateCount(); chips(); render();
+  });
+</script>
+</body>
+</html>

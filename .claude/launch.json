@@ -23,6 +23,15 @@
         "docs"
       ],
       "port": 8770
+    },
+    {
+      "name": "scenery-picker",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-I",
+        "tools/scenery_picker.py"
+      ],
+      "port": 8771
     }
   ]
 }
