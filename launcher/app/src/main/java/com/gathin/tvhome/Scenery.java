@@ -14,6 +14,7 @@ import android.widget.FrameLayout;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
+import androidx.media3.exoplayer.DefaultLoadControl;
 import androidx.media3.exoplayer.ExoPlayer;
 
 import org.json.JSONArray;
@@ -37,13 +38,18 @@ import java.util.concurrent.Executors;
  *
  * The video plays in a SurfaceView behind the window, so the TV's video decoder and its own video plane do
  * the work, as they do for Netflix; the launcher's GPU-drawn frames are untouched. Each clip (assets
- * scenery.json, or a pushed copy in the app's files) is downloaded once into the app's files, one at a time,
- * and plays from there; until the first is in, Home shows its plain background.
+ * scenery.json from tools/build_scenery.py, 100+ clips) is downloaded into the app's files and plays from
+ * there; until the first is in, Home shows its plain background.
+ *
+ * Kept light on a 2 GB TV with little storage: at most KEEP_CLIPS clips (and KEEP_BYTES) are on the TV;
+ * once that is full, a few new ones a day (NEW_PER_DAY) replace the ones that have been there longest, so
+ * the whole list comes round over time. Downloads run only while Home is in front (one at a time, and they
+ * stop the moment another app opens), never below 1 GB free; the player reads only a few seconds ahead.
  *
  * One ExoPlayer plays them all as a looping playlist. Stopping one player and starting another between
  * clips blanked the whole screen on this Sony (its picture processing drops out of video mode, Home's
  * apps with it) and stalled Home while the decoder shut down. In one playlist the video never stops, and
- * with every clip the same format (3840x2160 H.264) the decoder carries straight on into the next.
+ * with every clip the same format (1920x1080 H.264) the decoder carries straight on into the next.
  */
 final class Scenery implements SurfaceHolder.Callback {
     interface Listener { void sceneChanged(String name, String place); }
@@ -51,6 +57,11 @@ final class Scenery implements SurfaceHolder.Callback {
     private static final String TAG = "TvHome.Scenery";
     /** Leave this much free on the TV: scenery is nice to have, not worth filling the storage for. */
     private static final long KEEP_FREE_BYTES = 1024L * 1024 * 1024;
+    /** The rotating set on the TV: about 30 1080p clips, never more than ~600 MB. */
+    private static final int KEEP_CLIPS = 30;
+    private static final long KEEP_BYTES = 600L * 1024 * 1024;
+    /** Once the set is full, this many new clips a day replace the oldest. */
+    private static final int NEW_PER_DAY = 6;
 
     static final class Scene {
         final String id, name, place, url;
@@ -69,6 +80,8 @@ final class Scenery implements SurfaceHolder.Callback {
     private final Listener listener;
     private ExoPlayer player;
     private boolean enabled, resumed, surfaceReady, downloading;
+    /** Cleared the moment Home leaves the screen: a running download stops, so it never competes with an app. */
+    private volatile boolean allowDownloads;
     private int index;
     String credit = "";
 
@@ -151,11 +164,14 @@ final class Scenery implements SurfaceHolder.Callback {
 
     void resume() {
         resumed = true;
+        allowDownloads = true;
         if (enabled) play();
+        topUp();
     }
 
     void pause() {
         resumed = false;
+        allowDownloads = false;
         release();
     }
 
@@ -190,7 +206,7 @@ final class Scenery implements SurfaceHolder.Callback {
 
     /**
      * Starts the looping playlist of every clip already on the TV, from where it last was; clips that land
-     * later join the end of it (fetchMissing). Nothing on the TV yet: plays once the first download lands.
+     * later join the end of it (topUp). Nothing on the TV yet: plays once the first download lands.
      */
     private void play() {
         if (!enabled || !resumed || !surfaceReady || player != null || scenes.isEmpty()) return;
@@ -200,10 +216,16 @@ final class Scenery implements SurfaceHolder.Callback {
             if (fileFor(s).isFile()) items.add(itemFor(s));
         }
         if (items.isEmpty()) {
-            fetchMissing();
+            topUp();
             return;
         }
-        ExoPlayer p = new ExoPlayer.Builder(ctx).build();
+        // The clips are on the TV already: read a few seconds ahead, not ExoPlayer's default ~50 s / tens of MB.
+        DefaultLoadControl buffer = new DefaultLoadControl.Builder()
+                .setBufferDurationsMs(2500, 6000, 1000, 1500)
+                .setTargetBufferBytes(8 * 1024 * 1024)
+                .setPrioritizeTimeOverSizeThresholds(false)
+                .build();
+        ExoPlayer p = new ExoPlayer.Builder(ctx).setLoadControl(buffer).build();
         p.setVideoSurfaceHolder(surface.getHolder());
         p.setVolume(0f);
         p.setRepeatMode(Player.REPEAT_MODE_ALL);
@@ -226,7 +248,7 @@ final class Scenery implements SurfaceHolder.Callback {
                     p.prepare();
                     p.play();
                 } else {
-                    main.post(() -> { release(); fetchMissing(); });
+                    main.post(() -> { release(); topUp(); });
                 }
             }
         });
@@ -235,7 +257,7 @@ final class Scenery implements SurfaceHolder.Callback {
         p.play();
         player = p;
         announce(items.get(0));
-        fetchMissing();
+        topUp();
     }
 
     /** The caption, and where to start next time. */
@@ -259,27 +281,79 @@ final class Scenery implements SurfaceHolder.Callback {
 
     // ---- downloads ----
 
-    /** Fetches the first clip that isn't on the TV yet, one at a time, while there is room. */
-    private void fetchMissing() {
-        if (downloading || !enabled) return;
-        Scene missing = null;
+    /** The list's clips that are on the TV now. */
+    private List<File> onTv() {
+        List<File> out = new ArrayList<>();
+        for (Scene s : scenes) if (fileFor(s).isFile()) out.add(fileFor(s));
+        return out;
+    }
+
+    private int fetchedToday() {
+        long day = System.currentTimeMillis() / 86_400_000L;
+        return prefs.getLong("fetch_day", -1) == day ? prefs.getInt("fetched_today", 0) : 0;
+    }
+
+    private void countFetch() {
+        long day = System.currentTimeMillis() / 86_400_000L;
+        prefs.edit().putLong("fetch_day", day).putInt("fetched_today", fetchedToday() + 1).apply();
+    }
+
+    /**
+     * Fetches the next clip of the list that isn't on the TV, one at a time, while Home is in front. Until
+     * the set is full that is all; once full, up to NEW_PER_DAY a day, each replacing the clip that has been
+     * on the TV longest (never the one playing).
+     */
+    private void topUp() {
+        if (downloading || !enabled || !resumed || scenes.isEmpty()) return;
+        List<File> have = onTv();
+        long bytes = 0;
+        for (File f : have) bytes += f.length();
+        boolean full = have.size() >= KEEP_CLIPS || bytes >= KEEP_BYTES;
+        if (full && fetchedToday() >= NEW_PER_DAY) return;
+        int start = prefs.getInt("next_fetch", 0);
+        Scene next = null;
+        int at = -1;
         for (int i = 0; i < scenes.size(); i++) {
-            Scene s = scenes.get(Math.floorMod(index + i, scenes.size()));
-            if (!fileFor(s).isFile()) { missing = s; break; }
+            int k = Math.floorMod(start + i, scenes.size());
+            if (!fileFor(scenes.get(k)).isFile()) { next = scenes.get(k); at = k; break; }
         }
-        if (missing == null) return;
+        if (next == null) return;   // the whole list is on the TV
+        if (full && !evictOldest(have)) return;
         downloading = true;
-        final Scene s = missing;
+        final Scene s = next;
+        final int fetched = at;
         downloader.execute(() -> {
             boolean ok = download(s);
             main.post(() -> {
                 downloading = false;
                 if (!ok) return;
+                prefs.edit().putInt("next_fetch", fetched + 1).apply();
+                countFetch();
                 if (player == null) play();
                 else player.addMediaItem(itemFor(s));   // joins the end of the playlist, no restart
-                fetchMissing();
+                topUp();
             });
         });
+    }
+
+    /** Makes room: deletes the clip that has been on the TV longest, unless it is the one playing. */
+    private boolean evictOldest(List<File> have) {
+        String playing = player != null && player.getCurrentMediaItem() != null ? player.getCurrentMediaItem().mediaId : null;
+        File oldest = null;
+        for (File f : have) {
+            if (playing != null && f.getName().equals(playing + ".mp4")) continue;
+            if (oldest == null || f.lastModified() < oldest.lastModified()) oldest = f;
+        }
+        if (oldest == null) return false;
+        String id = oldest.getName().substring(0, oldest.getName().length() - 4);
+        if (player != null) {
+            for (int i = 0; i < player.getMediaItemCount(); i++) {
+                if (player.getMediaItemAt(i).mediaId.equals(id)) { player.removeMediaItem(i); break; }
+            }
+        }
+        //noinspection ResultOfMethodCallIgnored
+        oldest.delete();
+        return true;
     }
 
     private boolean download(Scene s) {
@@ -301,7 +375,10 @@ final class Scenery implements SurfaceHolder.Callback {
             try (InputStream in = c.getInputStream(); OutputStream out = new FileOutputStream(part)) {
                 byte[] buf = new byte[64 * 1024];
                 int n;
-                while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                while ((n = in.read(buf)) > 0) {
+                    if (!allowDownloads) throw new java.io.InterruptedIOException("Home left the screen");
+                    out.write(buf, 0, n);
+                }
             }
             return part.renameTo(fileFor(s));
         } catch (Exception e) {
